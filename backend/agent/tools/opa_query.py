@@ -1,4 +1,4 @@
-from armoriq.armorclaw import Tool
+from backend.armoriq_shims import Tool
 from backend.policies.opa_runner import evaluate_policy
 
 async def run_opa_query_impl(policy: str, input_data: dict) -> dict:

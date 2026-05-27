@@ -1,4 +1,4 @@
-from armoriq.armorclaw import Tool
+from backend.armoriq_shims import Tool
 
 BANNED_ALGORITHMS = ["MD5", "SHA1", "DES", "3DES", "RC4"]
 FIPS_APPROVED = ["SHA-256", "SHA-384", "SHA-512", "AES-256", "RSA-2048+", "ECDSA-P256+"]

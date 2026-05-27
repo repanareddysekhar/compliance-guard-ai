@@ -1,4 +1,4 @@
-from armoriq.opa import OPARunner
+from backend.armoriq_shims import OPARunner
 from backend.armoriq_client import armoriq
 from backend.settings import settings
 

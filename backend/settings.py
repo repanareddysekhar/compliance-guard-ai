@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from typing import List, Union
+from pydantic import field_validator
 
 class Settings(BaseSettings):
     # ArmorIQ SDK
@@ -16,7 +17,20 @@ class Settings(BaseSettings):
 
     # API
     COMPLIANCEGUARD_API_KEY: str
-    CORS_ORIGINS: List[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: Union[List[str], str] = ["http://localhost:5173"]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            if v.startswith("[") and v.endswith("]"):
+                import json
+                try:
+                    return json.loads(v)
+                except:
+                    pass
+            return [i.strip() for i in v.split(",")]
+        return v
 
     # OPA
     OPA_POLICY_PATH: str = "./backend/policies/"

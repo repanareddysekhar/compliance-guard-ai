@@ -1,4 +1,4 @@
-from armoriq.armorclaw import ArmorClaw, ToolCallPolicy
+from backend.armoriq_shims import ArmorClaw, ToolCallPolicy
 from backend.armoriq_client import armoriq
 from backend.agent.tools import file_reader, dependency_parser, crypto_checker, opa_query
 from backend.settings import settings

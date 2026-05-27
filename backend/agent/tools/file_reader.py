@@ -1,4 +1,4 @@
-from armoriq.armorclaw import Tool
+from backend.armoriq_shims import Tool
 import os
 
 def read_file_impl(path: str) -> dict:
