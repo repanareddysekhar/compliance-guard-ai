@@ -1,0 +1,52 @@
+# docker-compose.yml
+version: "3.9"
+
+services:
+  backend:
+    build: 
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ARMORIQ_API_KEY=${ARMORIQ_API_KEY}
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/complianceguard
+      - COMPLIANCEGUARD_API_KEY=${COMPLIANCEGUARD_API_KEY}
+      - LLM_MODEL=${LLM_MODEL}
+      - OPA_POLICY_PATH=/app/backend/policies/
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build: 
+      context: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+    profiles: ["frontend"] # Only start if requested
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: complianceguard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

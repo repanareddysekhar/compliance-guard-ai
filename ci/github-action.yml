@@ -1,0 +1,48 @@
+# ci/github-action.yml
+name: ComplianceGuard AI Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  compliance-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger ComplianceGuard Scan
+        run: |
+          RESPONSE=$(curl -s -X POST "${{ secrets.COMPLIANCEGUARD_URL }}/api/scan" \
+            -H "X-API-Key: ${{ secrets.COMPLIANCEGUARD_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "service_name": "${{ github.repository }}",
+              "repo_path": ".",
+              "standards": ["FIPS-140-3", "CIS-Docker", "OWASP-Dependency"]
+            }')
+          echo "SCAN_ID=$(echo $RESPONSE | jq -r .scan_id)" >> $GITHUB_ENV
+
+      - name: Wait for Scan + Check Results
+        run: |
+          # Poll until COMPLETED or FAILED
+          for i in {1..30}; do
+            STATUS=$(curl -s "${{ secrets.COMPLIANCEGUARD_URL }}/api/scan/$SCAN_ID" \
+              -H "X-API-Key: ${{ secrets.COMPLIANCEGUARD_API_KEY }}" | jq -r .status)
+            echo "Status: $STATUS"
+            if [ "$STATUS" = "COMPLETED" ]; then break; fi
+            if [ "$STATUS" = "FAILED" ]; then exit 1; fi
+            sleep 10
+          done
+
+      - name: Fail on HIGH violations
+        run: |
+          HIGH_COUNT=$(curl -s "${{ secrets.COMPLIANCEGUARD_URL }}/api/violations?scan_id=$SCAN_ID&severity=HIGH" \
+            -H "X-API-Key: ${{ secrets.COMPLIANCEGUARD_API_KEY }}" | jq '. | length')
+          echo "HIGH violations: $HIGH_COUNT"
+          if [ "$HIGH_COUNT" -gt "0" ]; then
+            echo "::error::$HIGH_COUNT HIGH severity violations found. Fix before merging."
+            exit 1
+          fi
