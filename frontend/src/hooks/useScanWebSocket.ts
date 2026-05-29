@@ -6,14 +6,20 @@ export function useScanWebSocket(scanId: string | null) {
   const [status, setStatus] = useState<ScanStatus>("PENDING");
 
   useEffect(() => {
+    setEvents([]);
+    setStatus(scanId ? "RUNNING" : "PENDING");
     if (!scanId) return;
-    
+
     const wsUrl = `ws://localhost:8000/ws/scan-status?scan_id=${scanId}`;
     const ws = new WebSocket(wsUrl);
 
+    ws.onopen = () => {
+      setStatus("RUNNING");
+    };
+
     ws.onmessage = (msg) => {
       const event = JSON.parse(msg.data) as WsEvent;
-      setEvents(prev => [...prev, event]);
+      setEvents((prev: WsEvent[]) => [...prev, event]);
       
       if (event.type === "SCAN_COMPLETED") setStatus("COMPLETED");
       if (event.type === "SCAN_FAILED") setStatus("FAILED");
@@ -22,7 +28,6 @@ export function useScanWebSocket(scanId: string | null) {
 
     ws.onerror = (err) => {
       console.error("WebSocket error:", err);
-      setStatus("FAILED");
     };
 
     return () => ws.close();
