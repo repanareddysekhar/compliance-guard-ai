@@ -43,6 +43,7 @@ async def run_scan(scan_run_id: str, repo_path: str, service_name: str, standard
     scan_prompt = build_scan_prompt(repo_path, service_name, standards)
 
     async for event in claw.run_async(
+        scan_run_id=scan_run_id,
         prompt=scan_prompt,
         tools=tools,
         system=SYSTEM_PROMPT,

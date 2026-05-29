@@ -22,9 +22,12 @@ class ConnectionManager:
                 del self.active_connections[scan_id]
 
     async def broadcast_to_scan(self, scan_id: str, message: dict):
+        print(f"Broadcasting to {scan_id}: {message}")
         if scan_id in self.active_connections:
             for connection in self.active_connections[scan_id]:
                 await connection.send_text(json.dumps(message))
+        else:
+            print(f"No active connections for {scan_id}")
 
 manager = ConnectionManager()
 

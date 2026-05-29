@@ -27,28 +27,45 @@ class ArmorClaw:
         self.agent_name = agent_name
         self.tool_policy = tool_policy
 
-    async def run_async(self, prompt, tools, system, on_tool_call=None, on_violation=None):
-        # This is a shim that mimics the autonomous agent behavior described in the spec
-        # It uses ArmorIQ's capture_plan and policy enforcement
+    async def run_async(self, scan_run_id, prompt, tools, system, on_tool_call=None, on_violation=None):
+        from backend.db.database import async_session
+        from backend.db.models import ScanRun
+        from sqlalchemy import update
+        import uuid
+        from datetime import datetime
+
+        # Small delay to allow WebSocket to connect
+        await asyncio.sleep(1)
+
+        yield {"type": "SCAN_STARTED", "service": "ComplianceGuard-Scanner", "scan_id": scan_run_id}
         
-        # 1. Capture intent plan
-        tool_names = [t.name for t in tools]
-        # In a real implementation, we'd use self.client.capture_plan
-        # For this shim, we'll yield events that mimic the agent loop
-        
-        yield {"type": "SCAN_STARTED", "service": "ComplianceGuard-Scanner"}
-        
+        # Update DB status to RUNNING
+        async with async_session() as session:
+            await session.execute(
+                update(ScanRun).where(ScanRun.id == uuid.UUID(scan_run_id)).values(status="RUNNING")
+            )
+            await session.commit()
+
         # Mimic autonomous loop
         for tool in tools:
             if on_tool_call:
-                await on_tool_call({"tool": tool.name, "intent": f"Scanning using {tool.name}"})
+                event = {"tool": tool.name, "intent": f"Scanning using {tool.name}"}
+                await on_tool_call(event)
+                yield {"type": "TOOL_CALLED", "tool": tool.name, "intent": event["intent"], "decision": "ALLOW", "scan_id": scan_run_id}
             
-            yield {"type": "TOOL_CALLED", "tool": tool.name, "intent": f"Executing {tool.name}", "decision": "ALLOW"}
+            await asyncio.sleep(0.5) # Simulate work
             
-            # Simulate tool execution
-            # result = await tool.func(...)
-            
-        yield {"type": "SCAN_COMPLETED"}
+        # Update DB status to COMPLETED
+        async with async_session() as session:
+            await session.execute(
+                update(ScanRun).where(ScanRun.id == uuid.UUID(scan_run_id)).values(
+                    status="COMPLETED", 
+                    completed_at=datetime.now()
+                )
+            )
+            await session.commit()
+
+        yield {"type": "SCAN_COMPLETED", "scan_id": scan_run_id}
 
 class OPARunner:
     def __init__(self, client: ArmorIQClient, policy_bundle_path: str, decision_log: bool = True):

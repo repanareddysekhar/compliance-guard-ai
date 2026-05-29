@@ -10,30 +10,34 @@ interface StatsBarProps {
 
 const StatsBar: React.FC<StatsBarProps> = ({ services, violations, fixed, score }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard 
-        label="Services Scanned" 
+        label="Services" 
         value={services} 
-        icon={<Search className="text-blue-500" />} 
-        color="blue"
+        icon={<Search size={18} className="text-blue-600" />} 
+        bgColor="bg-blue-50"
+        borderColor="border-blue-200"
       />
       <StatCard 
-        label="Total Violations" 
+        label="Violations" 
         value={violations} 
-        icon={<AlertTriangle className="text-red-500" />} 
-        color="red"
+        icon={<AlertTriangle size={18} className="text-rose-600" />} 
+        bgColor="bg-rose-50"
+        borderColor="border-rose-200"
       />
       <StatCard 
         label="Auto-Fixed" 
         value={fixed} 
-        icon={<CheckCircle className="text-green-500" />} 
-        color="green"
+        icon={<CheckCircle size={18} className="text-emerald-600" />} 
+        bgColor="bg-emerald-50"
+        borderColor="border-emerald-200"
       />
       <StatCard 
-        label="Compliance Score" 
+        label="Health Score" 
         value={`${score}%`} 
-        icon={<Shield className="text-indigo-500" />} 
-        color="indigo"
+        icon={<Shield size={18} className="text-indigo-600" />} 
+        bgColor="bg-indigo-50"
+        borderColor="border-indigo-200"
       />
     </div>
   );
@@ -43,18 +47,19 @@ interface StatCardProps {
   label: string;
   value: string | number;
   icon: React.ReactNode;
-  color: string;
+  bgColor: string;
+  borderColor: string;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ label, value, icon, color }) => {
+const StatCard: React.FC<StatCardProps> = ({ label, value, icon, bgColor, borderColor }) => {
   return (
-    <div className={`bg-white p-4 rounded-lg shadow-sm border-l-4 border-${color}-500 flex items-center`}>
-      <div className="p-3 rounded-full bg-gray-50 mr-4">
+    <div className={`bg-white p-5 rounded-xl shadow-sm border ${borderColor} flex items-center gap-4 hover:shadow-md transition-shadow cursor-default group`}>
+      <div className={`p-3 rounded-lg ${bgColor} group-hover:scale-110 transition-transform`}>
         {icon}
       </div>
       <div>
-        <p className="text-sm text-gray-500 font-medium">{label}</p>
-        <p className="text-2xl font-bold text-gray-800">{value}</p>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
+        <p className="text-2xl font-black text-slate-800 tracking-tighter">{value}</p>
       </div>
     </div>
   );

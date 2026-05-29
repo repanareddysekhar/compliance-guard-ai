@@ -9,52 +9,55 @@ interface ScanStatusProps {
 
 const ScanStatus: React.FC<ScanStatusProps> = ({ events, status }) => {
   return (
-    <div className="bg-gray-900 rounded-lg shadow-sm border border-gray-800 mb-6 overflow-hidden">
-      <div className="px-4 py-2 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
-        <div className="flex items-center gap-2 text-gray-300">
-          <Terminal size={16} />
-          <span className="text-xs font-mono font-bold uppercase tracking-wider">Scan Live Feed</span>
+    <div className="bg-slate-900 rounded-xl shadow-lg border border-slate-800 overflow-hidden">
+      <div className="px-4 py-3 bg-slate-800/50 border-b border-slate-800 flex justify-between items-center">
+        <div className="flex items-center gap-2 text-slate-300">
+          <Terminal size={14} className="text-emerald-400" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Live Execution Trace</span>
         </div>
         <div className="flex items-center gap-2">
-          {status === 'RUNNING' && <Activity size={14} className="text-blue-400 animate-pulse" />}
-          {status === 'COMPLETED' && <CheckCircle2 size={14} className="text-green-400" />}
-          {status === 'FAILED' && <XCircle size={14} className="text-red-400" />}
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            status === 'RUNNING' ? 'bg-blue-900 text-blue-200' :
-            status === 'COMPLETED' ? 'bg-green-900 text-green-200' :
-            status === 'FAILED' ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-400'
+          {status === 'RUNNING' && <Activity size={12} className="text-blue-400 animate-pulse" />}
+          <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${
+            status === 'RUNNING' ? 'bg-blue-500/20 text-blue-400' :
+            status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-400' :
+            status === 'FAILED' ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-700 text-slate-400'
           }`}>
             {status}
           </span>
         </div>
       </div>
-      <div className="p-4 h-48 overflow-y-auto font-mono text-xs flex flex-col-reverse gap-1">
+      <div className="p-4 h-64 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-1 bg-slate-950/50">
         {events.length === 0 ? (
-          <div className="text-gray-600">Waiting for scan to start...</div>
+          <div className="text-slate-600 italic">No active process...</div>
         ) : (
-          events.slice().reverse().map((event, idx) => (
-            <div key={idx} className="flex gap-2">
-              <span className="text-gray-500">[{new Date().toLocaleTimeString()}]</span>
-              {event.type === 'SCAN_STARTED' && (
-                <span className="text-blue-400">Scan started for service: {event.service}</span>
-              )}
-              {event.type === 'TOOL_CALLED' && (
-                <span className="text-gray-300 italic">
-                  Calling {event.tool}: <span className="text-gray-500">{event.intent}</span> → 
-                  <span className={event.decision === 'ALLOW' ? 'text-green-400' : 'text-red-400'}> {event.decision}</span>
-                </span>
-              )}
-              {event.type === 'VIOLATION_FOUND' && (
-                <span className="text-amber-400">
-                  ⚠️ Found {event.violation?.severity} violation: {event.violation?.description}
-                </span>
-              )}
-              {event.type === 'SCAN_COMPLETED' && (
-                <span className="text-green-400 font-bold underline">Scan completed successfully.</span>
-              )}
-              {event.type === 'SCAN_FAILED' && (
-                <span className="text-red-400 font-bold underline">Scan failed: {event.error}</span>
-              )}
+          events.map((event, idx) => (
+            <div key={idx} className="flex gap-3 border-l border-slate-800 pl-3 pb-1 relative">
+              <div className="absolute -left-[1px] top-1.5 w-[3px] h-[3px] rounded-full bg-slate-700"></div>
+              <span className="text-slate-600 shrink-0 font-bold">{new Date().toLocaleTimeString([], { hour12: false })}</span>
+              <div className="flex-1">
+                {event.type === 'SCAN_STARTED' && (
+                  <span className="text-blue-400 font-bold">▶ START: {event.service}</span>
+                )}
+                {event.type === 'TOOL_CALLED' && (
+                  <div className="flex flex-col">
+                    <span className="text-slate-300">
+                      <span className="text-emerald-400 font-bold">CALL</span> {event.tool}
+                    </span>
+                    <span className="text-slate-500 italic text-[10px]">{event.intent}</span>
+                  </div>
+                )}
+                {event.type === 'VIOLATION_FOUND' && (
+                  <span className="text-rose-400 font-bold">
+                    ✖ FOUND: {event.violation?.description}
+                  </span>
+                )}
+                {event.type === 'SCAN_COMPLETED' && (
+                  <span className="text-emerald-400 font-bold">✔ SUCCESS: Scan finalized.</span>
+                )}
+                {event.type === 'SCAN_FAILED' && (
+                  <span className="text-rose-500 font-bold">✖ FAILURE: {event.error}</span>
+                )}
+              </div>
             </div>
           ))
         )}
