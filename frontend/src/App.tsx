@@ -3,11 +3,13 @@ import StatsBar from './components/StatsBar';
 import ScanTrigger from './components/ScanTrigger';
 import ScanStatus from './components/ScanStatus';
 import ViolationLog from './components/ViolationLog';
+import AuditTrail from './components/AuditTrail';
 import { useScanWebSocket } from './hooks/useScanWebSocket';
 import { useViolations } from './hooks/useViolations';
+import { useAuditEvents } from './hooks/useAuditEvents';
 import { Shield, Activity, Book, History, ExternalLink, Code, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import client from './api/client';
-import { AuditEvent, ScanLog, ScanRun } from './types';
+import { AuditEvent, ScanLog, ScanRun, Violation } from './types';
 
 type View = 'dashboard' | 'policies' | 'audit';
 
@@ -25,9 +27,13 @@ const App: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { events, status } = useScanWebSocket(currentScanId);
   const { violations } = useViolations(currentScanId || undefined);
-  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const { auditEvents: liveAuditEvents } = useAuditEvents(currentScanId || undefined);
+  const [historyAuditEvents, setHistoryAuditEvents] = useState<AuditEvent[]>([]);
   const [scanRuns, setScanRuns] = useState<ScanRun[]>([]);
   const [scanLogs, setScanLogs] = useState<ScanLog[]>([]);
+  const [historyViolations, setHistoryViolations] = useState<Violation[]>([]);
+  const [historyViolationsCollapsed, setHistoryViolationsCollapsed] = useState(false);
+  const [historyAuditCollapsed, setHistoryAuditCollapsed] = useState(false);
   const [selectedHistoryScanId, setSelectedHistoryScanId] = useState<string | null>(null);
   const [policies, setPolicies] = useState<Policy[]>([]);
 
@@ -38,6 +44,7 @@ const App: React.FC = () => {
     fixed: 0,
     score: currentScanId ? 85 : 100
   };
+  const selectedHistoryScan = scanRuns.find((scan) => scan.id === selectedHistoryScanId);
 
   useEffect(() => {
     if (activeView === 'audit') {
@@ -53,13 +60,15 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (activeView !== 'audit' || !selectedHistoryScanId) {
-      setAuditEvents([]);
+      setHistoryAuditEvents([]);
       setScanLogs([]);
+      setHistoryViolations([]);
       return;
     }
 
-    client.get(`/api/audit/${selectedHistoryScanId}`).then((res: { data: AuditEvent[] }) => setAuditEvents(res.data));
+    client.get(`/api/audit/${selectedHistoryScanId}`).then((res: { data: AuditEvent[] }) => setHistoryAuditEvents(res.data));
     client.get(`/api/scan/${selectedHistoryScanId}/logs`).then((res: { data: ScanLog[] }) => setScanLogs(res.data));
+    client.get('/api/violations', { params: { scan_id: selectedHistoryScanId } }).then((res: { data: Violation[] }) => setHistoryViolations(res.data));
   }, [activeView, selectedHistoryScanId]);
 
   return (
@@ -168,7 +177,7 @@ const App: React.FC = () => {
               <div className="grid grid-cols-1 2xl:grid-cols-12 gap-8 items-start pb-10">
                 <div className="2xl:col-span-4 space-y-8">
                   <ScanTrigger onScanTriggered={setCurrentScanId} />
-                  <ScanStatus events={events} status={status} scanId={currentScanId} />
+                  <ScanStatus events={events} auditEvents={liveAuditEvents} status={status} scanId={currentScanId} />
                 </div>
                 
                 <div className="2xl:col-span-8 h-full">
@@ -257,6 +266,47 @@ const App: React.FC = () => {
               </div>
 
               <div className="xl:col-span-8 space-y-6">
+                {selectedHistoryScan && (
+                  <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                    <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Selected Evidence Package</p>
+                          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-900">{selectedHistoryScan.service_name}</h2>
+                          <p className="mt-1 break-all text-xs font-mono text-slate-500">{selectedHistoryScan.id}</p>
+                        </div>
+                        <span className={`rounded-lg px-3 py-1 text-[10px] font-black ${
+                          selectedHistoryScan.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                          selectedHistoryScan.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
+                          selectedHistoryScan.status === 'RUNNING' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {selectedHistoryScan.status}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-px bg-slate-100 md:grid-cols-4">
+                      <div className="bg-white px-5 py-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Violations</p>
+                        <p className="mt-1 text-2xl font-black text-slate-900">{selectedHistoryScan.violations_found}</p>
+                      </div>
+                      <div className="bg-white px-5 py-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Execution Logs</p>
+                        <p className="mt-1 text-2xl font-black text-slate-900">{selectedHistoryScan.log_count ?? scanLogs.length}</p>
+                      </div>
+                      <div className="bg-white px-5 py-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audit Events</p>
+                        <p className="mt-1 text-2xl font-black text-slate-900">{selectedHistoryScan.audit_count ?? historyAuditEvents.length}</p>
+                      </div>
+                      <div className="bg-white px-5 py-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Score</p>
+                        <p className="mt-1 text-2xl font-black text-slate-900">
+                          {selectedHistoryScan.compliance_score !== undefined ? Number(selectedHistoryScan.compliance_score).toFixed(0) : '--'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                   <div className="p-6 border-b border-slate-100 flex flex-wrap items-start justify-between gap-4">
                     <div>
@@ -286,65 +336,22 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                  <div className="p-6 border-b border-slate-100">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <h2 className="text-xl font-black text-slate-800 tracking-tight">Cryptographic Audit Trail</h2>
-                        <p className="text-slate-500 font-medium">Signed agent actions persisted in PostgreSQL.</p>
-                      </div>
-                      <span className="rounded-lg bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-700">
-                        {auditEvents.length} signed events
-                      </span>
-                    </div>
-                  </div>
-                  <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-50 border-b border-slate-100">
-                      <tr>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Timestamp</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Agent Action</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Intent Verification</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Policy Decision</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Signature</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {auditEvents.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="px-8 py-20 text-center text-slate-400 font-medium italic">
-                            No signed audit rows found for this scan. If this is an older scan, run a new scan after restarting the backend.
-                          </td>
-                        </tr>
-                      ) : (
-                        auditEvents.map(event => (
-                          <tr key={event.event_id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-8 py-4 text-xs font-bold text-slate-500">{new Date(event.timestamp).toLocaleString()}</td>
-                            <td className="px-8 py-4">
-                              <span className="text-xs font-black bg-indigo-50 text-indigo-700 px-2 py-1 rounded uppercase tracking-tighter border border-indigo-100">
-                                {event.tool_called}
-                              </span>
-                            </td>
-                            <td className="px-8 py-4 text-xs font-medium text-slate-600 max-w-xs truncate">{event.intent}</td>
-                            <td className="px-8 py-4">
-                              <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${
-                                event.policy_decision === 'ALLOW' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                              }`}>
-                                {event.policy_decision}
-                              </span>
-                            </td>
-                            <td className="px-8 py-4 text-right">
-                              <span className="text-[10px] font-mono font-bold text-indigo-400 bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                                {event.signature.substring(0, 12)}...
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                  </div>
-                </div>
+                <ViolationLog
+                  violations={historyViolations}
+                  compact
+                  collapsible
+                  collapsed={historyViolationsCollapsed}
+                  onCollapsedChange={setHistoryViolationsCollapsed}
+                />
+
+                <AuditTrail
+                  events={historyAuditEvents}
+                  compact
+                  collapsible
+                  collapsed={historyAuditCollapsed}
+                  onCollapsedChange={setHistoryAuditCollapsed}
+                  emptyMessage="No signed audit rows found for this scan. If this is an older scan, run a new scan after restarting the backend."
+                />
               </div>
             </div>
           )}
