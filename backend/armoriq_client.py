@@ -3,7 +3,9 @@ from backend.armoriq_shims import PolicyConfig
 from backend.settings import settings
 
 armoriq = ArmorIQClient(
-    api_key=settings.ARMORIQ_API_KEY
+    api_key=settings.ARMORIQ_API_KEY,
+    agent_id="ComplianceGuard-Scanner",
+    user_id=getattr(settings, "ARMORIQ_USER_ID", None) or "complianceguard-system",
 )
 
 # In a real scenario, we might want to apply this config to the client or session

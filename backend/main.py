@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import logging
+
 from backend.api import scan, report, violations, audit, ws, policies
 from backend.settings import settings
 from backend.db.database import engine, Base
-import logging
+from backend.agent.llm_health import LLMHealthError, check_llm_health
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,4 +39,10 @@ app.include_router(ws.router)
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    result = {"status": "healthy", "llm": {"status": "unknown"}}
+    try:
+        result["llm"] = await check_llm_health()
+    except LLMHealthError as exc:
+        result["status"] = "degraded"
+        result["llm"] = {"status": "error", "detail": str(exc)}
+    return result

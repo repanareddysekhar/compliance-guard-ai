@@ -6,6 +6,7 @@ alembic
 pydantic>=2.0
 pydantic-settings
 armoriq-sdk
+# anthropic>=0.40   # optional: only when LLM_PROVIDER=anthropic
 python-dotenv
 websockets
 httpx

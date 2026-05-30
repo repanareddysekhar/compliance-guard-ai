@@ -2,8 +2,34 @@
 version: "3.9"
 
 services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 15s
+
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      LLM_MODEL: llama3.2:3b
+    volumes:
+      - ./scripts/docker-ollama-init.sh:/docker-ollama-init.sh:ro
+    entrypoint: ["/bin/sh", "/docker-ollama-init.sh"]
+
   backend:
-    build: 
+    build:
       context: .
       dockerfile: backend/Dockerfile
     ports:
@@ -12,18 +38,24 @@ services:
       - ARMORIQ_API_KEY=${ARMORIQ_API_KEY}
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/complianceguard
       - COMPLIANCEGUARD_API_KEY=${COMPLIANCEGUARD_API_KEY}
-      - LLM_MODEL=${LLM_MODEL}
+      - LLM_PROVIDER=ollama
+      - LLM_BASE_URL=http://ollama:11434/v1
+      - LLM_MODEL=llama3.2:3b
+      - LLM_MAX_TURNS=${LLM_MAX_TURNS:-60}
+      - LLM_TIMEOUT_SECONDS=${LLM_TIMEOUT_SECONDS:-300}
       - OPA_POLICY_PATH=/app/backend/policies/
     depends_on:
+      ollama-init:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
     volumes:
       - .:/app
-      - C:\Users\YOGARATHNAM\CheatSheetSeries:/scan-repos:ro
+      - /Users/rreddy/Documents:/scan-repos:ro
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
-    build: 
+    build:
       context: ./frontend
     ports:
       - "5173:5173"
@@ -51,3 +83,4 @@ services:
 
 volumes:
   pgdata:
+  ollama_data:

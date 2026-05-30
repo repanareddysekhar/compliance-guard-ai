@@ -8,9 +8,17 @@ class Settings(BaseSettings):
     ARMORIQ_ENFORCEMENT_MODE: str = "blocking"
     ARMORIQ_CRYPTOGRAPHIC_AUDIT: bool = True
 
-    # LLM Provider
-    LLM_MODEL: str = "claude-3-5-sonnet-20240620"
+    # LLM Provider (defaults to local Ollama for POC)
+    LLM_PROVIDER: str = "ollama"                 # ollama | openai | anthropic
+    LLM_BASE_URL: str = "http://localhost:11434/v1"
+    LLM_MODEL: str = "llama3.2:3b"
     LLM_MAX_TOKENS: int = 4096
+    LLM_MAX_TURNS: int = 60
+    LLM_TIMEOUT_SECONDS: float = 120.0
+    OPENAI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""
+    ARMORIQ_MODE: str = "local"
+    ARMORIQ_USER_ID: str = "complianceguard-system"
 
     # Database
     DATABASE_URL: str
