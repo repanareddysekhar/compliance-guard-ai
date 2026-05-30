@@ -1,41 +1,23 @@
 import hashlib
 import os
-import re
 import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import update
 
 from backend.agent.claw_runner import ArmorClaw
+from backend.agent.deterministic_scan import scan_repository
 from backend.agent.tools.registry import build_scan_tools, discover_scan_files
 from backend.armoriq_client import armoriq
 from backend.armoriq_shims import ToolCallPolicy
 from backend.db.database import async_session
 from backend.db.models import AuditEvent, ScanLog, ScanRun, Violation
 from backend.engine.violation_engine import score_violation
+from backend.settings import settings
 
 SYSTEM_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "prompts", "system_prompt.txt")
 with open(SYSTEM_PROMPT_PATH, "r") as f:
     SYSTEM_PROMPT = f.read()
-
-OUTDATED_DEPENDENCIES = {
-    "flask": "Upgrade to Flask 3.x or latest maintained version.",
-    "requests": "Upgrade to the latest patched Requests release.",
-    "cryptography": "Upgrade to the latest supported cryptography package.",
-    "pyyaml": "Upgrade to the latest patched PyYAML release.",
-}
-
-
-def _line_number(content: str, needle: str | re.Pattern) -> int | None:
-    for idx, raw_line in enumerate(content.splitlines(), start=1):
-        line = raw_line.strip()
-        if not line or line.startswith(("#", "//", "/*", "*", "<!--")):
-            continue
-        if isinstance(needle, re.Pattern) and needle.search(line):
-            return idx
-        if isinstance(needle, str) and needle.lower() in line.lower():
-            return idx
-    return None
 
 
 def _hash_text(text: str) -> str:
@@ -96,13 +78,22 @@ def _build_violation(
     remediation: str,
     policy_ref: str,
     line_number: int | None = None,
+    severity: str | None = None,
 ) -> Violation:
-    severity, status = score_violation(category, finding)
+    computed_severity, status = score_violation(category, finding)
+    final_severity = severity if severity in {"HIGH", "MED", "LOW"} else computed_severity
+    if final_severity == "HIGH":
+        status = "BLOCKED"
+    elif final_severity == "MED":
+        status = "FLAGGED"
+    else:
+        status = "REPORTED"
+
     return Violation(
         id=uuid.uuid4(),
         scan_run_id=scan_uuid,
         service=service_name,
-        severity=severity,
+        severity=final_severity,
         status=status,
         category=category,
         description=description,
@@ -115,26 +106,34 @@ def _build_violation(
 
 def build_scan_prompt(repo_path: str, service_name: str, standards: list[str]) -> str:
     files = discover_scan_files(repo_path)
-    preview = "\n".join(f"- {path}" for path in files[:100])
-    extra = f"\n... and {len(files) - 100} more files" if len(files) > 100 else ""
+    preview = "\n".join(f"- {path}" for path in files)
 
-    return f"""Start a compliance scan for the service '{service_name}' located at '{repo_path}'.
-Check against these standards: {', '.join(standards)}.
+    file_contents = ""
+    abs_repo = os.path.abspath(repo_path)
+    if len(files) <= 20:
+        blocks: list[str] = []
+        for rel in files:
+            try:
+                with open(os.path.join(abs_repo, rel), "r", encoding="utf-8", errors="ignore") as handle:
+                    content = handle.read(8000)
+                blocks.append(f"### {rel}\n```\n{content}\n```")
+            except OSError:
+                continue
+        if blocks:
+            file_contents = "\n\nFile contents to analyze:\n" + "\n\n".join(blocks)
 
-Primary objective: FIPS-140-3 cryptographic compliance.
+    return f"""Start a compliance scan for '{service_name}' at '{repo_path}'.
+Standards: {', '.join(standards)}.
 
-Repository files to inspect:
-{preview}{extra}
+Files to inspect:
+{preview}
+{file_contents}
 
-Required workflow:
-1. Use list_files if you need to explore the repository structure.
-2. Use read_file on each relevant source, config, Dockerfile, and dependency manifest.
-3. Use check_crypto on code that may contain cryptography, TLS settings, or hashing.
-4. For every non-compliant algorithm found, call run_opa_query with policy "compliance/cryptographic".
-5. Continue until all relevant files are reviewed, then provide a concise final compliance summary.
+You MUST call report_finding for every violation you identify. Do not finish with only a text summary.
 
-Approved examples: SHA-256, SHA-384, SHA-512, AES-256-GCM, RSA-2048+, ECDSA-P256+.
-Banned examples: MD5, SHA1, DES, 3DES, RC4, TLS 1.0, TLS 1.1, disabled certificate validation.
+For each issue include: file_path, line_number, category, finding, severity (HIGH/MED/LOW), description, remediation.
+
+Start by analyzing the file contents above, then read_file any additional paths if needed, and report_finding for each violation.
 """
 
 
@@ -171,7 +170,7 @@ async def _record_violation(
     }, session, scan_uuid)
 
 
-async def _run_supplemental_scan(
+async def _merge_deterministic_findings(
     repo_path: str,
     service_name: str,
     scan_id: str,
@@ -181,63 +180,21 @@ async def _run_supplemental_scan(
     seen_keys: set[tuple],
     on_event,
 ):
-    """Deterministic checks for container and dependency issues after the LLM FIPS pass."""
-    for root, dirs, files in os.walk(repo_path):
-        dirs[:] = [d for d in dirs if d not in {".git", "node_modules", "__pycache__", ".venv", "venv", "dist", "build"}]
-        for filename in files:
-            file_path = os.path.join(root, filename)
-            rel_path = os.path.relpath(file_path, repo_path)
-
-            try:
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as handle:
-                    content = handle.read()
-            except OSError:
-                continue
-
-            lower_content = content.lower()
-
-            if filename == "Dockerfile":
-                if ":latest" in content:
-                    violation = _build_violation(
-                        scan_uuid, service_name, rel_path, "CONTAINER", "latest_tag",
-                        "Docker image uses the mutable 'latest' tag.", "Pin the image to a specific version tag.",
-                        "compliance/container", _line_number(content, ":latest"),
-                    )
-                    await _record_violation(session, discovered, seen_keys, violation, on_event, scan_id, scan_uuid)
-                if "healthcheck" not in lower_content:
-                    violation = _build_violation(
-                        scan_uuid, service_name, rel_path, "CONTAINER", "no_healthcheck",
-                        "Dockerfile does not define a HEALTHCHECK.", "Add a HEALTHCHECK instruction to verify container health.",
-                        "compliance/container",
-                    )
-                    await _record_violation(session, discovered, seen_keys, violation, on_event, scan_id, scan_uuid)
-                if "user " not in lower_content or "user root" in lower_content:
-                    violation = _build_violation(
-                        scan_uuid, service_name, rel_path, "CONTAINER", "root_user",
-                        "Container appears to run as root.", "Create and switch to a non-root user with USER appuser.",
-                        "compliance/container", _line_number(content, "USER"),
-                    )
-                    await _record_violation(session, discovered, seen_keys, violation, on_event, scan_id, scan_uuid)
-
-            if filename == "requirements.txt":
-                for line in content.splitlines():
-                    dep = line.strip()
-                    if not dep or dep.startswith("#") or "==" not in dep:
-                        continue
-                    pkg = dep.split("==", 1)[0].lower()
-                    if pkg in OUTDATED_DEPENDENCIES:
-                        violation = _build_violation(
-                            scan_uuid=scan_uuid,
-                            service_name=service_name,
-                            file_path=rel_path,
-                            category="DEPENDENCY",
-                            finding="outdated",
-                            description=f"Dependency '{dep}' is outdated or known to be risky.",
-                            remediation=OUTDATED_DEPENDENCIES[pkg],
-                            policy_ref="compliance/dependency",
-                            line_number=_line_number(content, dep),
-                        )
-                        await _record_violation(session, discovered, seen_keys, violation, on_event, scan_id, scan_uuid)
+    """Rule-based fallback so scans never return 0 when violations exist."""
+    for payload in scan_repository(repo_path):
+        violation = _build_violation(
+            scan_uuid=scan_uuid,
+            service_name=service_name,
+            file_path=payload.get("file_path"),
+            category=payload.get("category", "CRYPTOGRAPHIC"),
+            finding=payload.get("finding", "compliance_issue"),
+            description=payload.get("description") or "Compliance violation detected",
+            remediation=payload.get("remediation") or "Review and fix the identified issue.",
+            policy_ref=payload.get("policy", "deterministic/compliance"),
+            line_number=payload.get("line_number"),
+            severity=payload.get("severity"),
+        )
+        await _record_violation(session, discovered, seen_keys, violation, on_event, scan_id, scan_uuid)
 
 
 async def run_scan(
@@ -257,7 +214,7 @@ async def run_scan(
         client=armoriq,
         agent_name="ComplianceGuard-Scanner",
         tool_policy=ToolCallPolicy(
-            allowed_tools=["list_files", "read_file", "parse_dependency", "check_crypto", "run_opa_query"],
+            allowed_tools=["list_files", "read_file", "parse_dependency", "report_finding"],
             blocked_tools=["execute_shell", "write_file", "network_request"],
             require_intent_match=True,
         ),
@@ -275,6 +232,7 @@ async def run_scan(
             "scan_id": scan_run_id,
             "service": service_name,
             "standards": standards,
+            "mode": "llm-only" if not settings.ARMORIQ_ENABLED else "llm+armoriq",
         }, session, scan_uuid)
 
         async def handle_tool_event(event: dict):
@@ -285,17 +243,18 @@ async def run_scan(
                 await on_tool_call(event)
 
         async def handle_agent_violation(payload: dict):
-            finding = payload.get("finding") or payload.get("algorithm") or "policy_violation"
+            finding = payload.get("finding") or "compliance_issue"
             violation = _build_violation(
                 scan_uuid=scan_uuid,
                 service_name=service_name,
                 file_path=payload.get("file_path"),
                 category=payload.get("category", "CRYPTOGRAPHIC"),
                 finding=finding,
-                description=payload.get("description") or payload.get("reason") or "FIPS violation detected",
-                remediation=payload.get("remediation") or payload.get("suggested") or "Use FIPS-approved algorithms.",
-                policy_ref=payload.get("policy", "compliance/cryptographic"),
+                description=payload.get("description") or "Compliance violation detected",
+                remediation=payload.get("remediation") or "Review and fix the identified issue.",
+                policy_ref="llm/compliance",
                 line_number=payload.get("line_number"),
+                severity=payload.get("severity"),
             )
             await _record_violation(session, discovered, seen_keys, violation, on_event, scan_run_id, scan_uuid)
             if on_violation:
@@ -318,9 +277,19 @@ async def run_scan(
                     continue
                 await _emit_event(on_event, event, session, scan_uuid)
 
-            await _run_supplemental_scan(
+            llm_count = len(discovered)
+            await _merge_deterministic_findings(
                 repo_path, service_name, scan_run_id, scan_uuid, session, discovered, seen_keys, on_event,
             )
+            if len(discovered) > llm_count:
+                await _emit_event(on_event, {
+                    "type": "AGENT_SUMMARY",
+                    "scan_id": scan_run_id,
+                    "summary": (
+                        f"LLM reported {llm_count} violation(s). "
+                        f"Rule-based scan added {len(discovered) - llm_count} more."
+                    ),
+                }, session, scan_uuid)
 
             compliance_score = max(0, 100 - (len(discovered) * 10))
             await session.execute(

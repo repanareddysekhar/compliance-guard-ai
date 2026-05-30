@@ -4,9 +4,6 @@ import logging
 import time
 from typing import Any, Awaitable, Callable
 
-from armoriq_sdk.models import ToolCall
-from armoriq_sdk.session import SessionOptions
-
 from backend.agent.llm_client import AgentLLMClient
 from backend.armoriq_shims import Tool, ToolCallPolicy
 from backend.settings import settings
@@ -35,8 +32,30 @@ def _serialize_tool_result(result: Any) -> str:
     return json.dumps(result, default=str)
 
 
+def _get_armoriq_session():
+    if not settings.ARMORIQ_ENABLED:
+        return None
+    from backend.armoriq_client import get_armoriq_session
+    return get_armoriq_session()
+
+
+def _armoriq_start_plan(session, tool_uses, scan_run_id: str, turn: int):
+    from armoriq_sdk.models import ToolCall
+
+    plan_calls = [ToolCall(name=b.name, args=b.input) for b in tool_uses]
+    token = session.start_plan(
+        plan_calls,
+        goal=f"Compliance scan {scan_run_id} turn {turn}",
+    )
+    logger.info(
+        "ArmorIQ intent token minted: plan_id=%s turn=%s",
+        getattr(token, "plan_id", None),
+        turn,
+    )
+
+
 class ArmorClaw:
-    """LLM-orchestrated scan agent with ArmorIQ intent verification on tool calls."""
+    """LLM-orchestrated scan agent. ArmorIQ is optional (ARMORIQ_ENABLED)."""
 
     def __init__(self, client, agent_name: str, tool_policy: ToolCallPolicy):
         self.client = client
@@ -57,38 +76,45 @@ class ArmorClaw:
         llm.add_user_message(prompt)
 
         tool_map = {tool.name: tool for tool in tools}
-        session = self.client.start_session(
-            SessionOptions(
-                llm=settings.LLM_MODEL,
-                default_mcp_name="ComplianceGuard",
-                mode=settings.ARMORIQ_MODE,
-            )
-        )
+        session = _get_armoriq_session()
+
+        if settings.ARMORIQ_ENABLED:
+            logger.info("ArmorIQ SDK enabled — tool calls will be sent to ArmorIQ")
+        else:
+            logger.info("ArmorIQ SDK disabled — using local LLM-only scan mode")
 
         yield {"type": "SCAN_STARTED", "service": self.agent_name, "scan_id": scan_run_id}
+
+        findings_reported = 0
+        min_turns_before_summary = 3
 
         for turn in range(1, settings.LLM_MAX_TURNS + 1):
             turn_result = await llm.run_turn(system, tools)
 
             if not turn_result.tool_uses:
-                if turn_result.text_blocks:
+                if turn_result.text_blocks and (findings_reported > 0 or turn >= min_turns_before_summary):
                     yield {
                         "type": "AGENT_SUMMARY",
                         "scan_id": scan_run_id,
                         "summary": turn_result.text_blocks[-1],
                     }
+                    break
+                if turn < min_turns_before_summary:
+                    llm.add_user_message(
+                        "You must use tools. Call report_finding for each compliance violation. "
+                        "Use read_file if needed. Do not respond with text only."
+                    )
+                    continue
                 break
 
             tool_results: list[dict[str, Any]] = []
-            plan_calls = [
-                ToolCall(name=block.name, args=block.input)
-                for block in turn_result.tool_uses
-            ]
 
-            try:
-                session.start_plan(plan_calls, goal=f"Compliance scan turn {turn}")
-            except Exception as exc:
-                logger.warning("ArmorIQ plan capture failed, continuing with local tool policy: %s", exc)
+            if session is not None:
+                try:
+                    _armoriq_start_plan(session, turn_result.tool_uses, scan_run_id, turn)
+                except Exception as exc:
+                    logger.error("ArmorIQ plan capture failed: %s", exc)
+                    raise
 
             for block in turn_result.tool_uses:
                 tool_name = block.name
@@ -96,7 +122,7 @@ class ArmorClaw:
                 intent = f"{tool_name}({json.dumps(tool_input, default=str)[:180]})"
 
                 allowed, decision = _is_tool_allowed(tool_name, self.tool_policy)
-                if allowed:
+                if allowed and session is not None:
                     try:
                         enforce_result = session.check(tool_name, tool_input)
                         if not enforce_result.allowed:
@@ -131,50 +157,25 @@ class ArmorClaw:
                 try:
                     tool = tool_map[tool_name]
                     result = await _execute_tool(tool, tool_input)
-                    session.report(tool_name, tool_input, result)
+
+                    if session is not None:
+                        session.report(tool_name, tool_input, result)
 
                     if on_tool_result:
                         maybe = on_tool_result(tool_name, tool_input, result)
                         if inspect.isawaitable(maybe):
                             await maybe
 
-                    if on_violation and tool_name == "check_crypto" and isinstance(result, dict):
-                        for violation in result.get("violations", []):
-                            payload = {
-                                **violation,
-                                "file_path": violation.get("file_path") or tool_input.get("file_path"),
-                                "category": "CRYPTOGRAPHIC",
-                                "source_tool": tool_name,
-                            }
-                            maybe = on_violation(payload)
-                            if inspect.isawaitable(maybe):
-                                await maybe
-                            yield {
-                                "type": "VIOLATION_FOUND",
-                                "scan_id": scan_run_id,
-                                "violation": payload,
-                            }
-
-                    if on_violation and tool_name == "run_opa_query" and isinstance(result, dict):
-                        if result.get("allowed") is False:
-                            input_data = tool_input.get("input_data", {})
-                            payload = {
-                                "finding": input_data.get("algorithm", "policy_violation"),
-                                "description": "; ".join(result.get("violations", [])) or "OPA policy violation",
-                                "remediation": "Replace with FIPS 140-3 approved algorithms.",
-                                "file_path": input_data.get("file_path"),
-                                "line_number": input_data.get("line_number"),
-                                "category": "CRYPTOGRAPHIC",
-                                "source_tool": tool_name,
-                            }
-                            maybe = on_violation(payload)
-                            if inspect.isawaitable(maybe):
-                                await maybe
-                            yield {
-                                "type": "VIOLATION_FOUND",
-                                "scan_id": scan_run_id,
-                                "violation": payload,
-                            }
+                    if on_violation and tool_name == "report_finding" and isinstance(result, dict) and result.get("recorded"):
+                        findings_reported += 1
+                        maybe = on_violation(result)
+                        if inspect.isawaitable(maybe):
+                            await maybe
+                        yield {
+                            "type": "VIOLATION_FOUND",
+                            "scan_id": scan_run_id,
+                            "violation": result,
+                        }
 
                     tool_results.append({
                         "type": "tool_result",
@@ -183,7 +184,8 @@ class ArmorClaw:
                     })
                 except Exception as exc:
                     duration_ms = int((time.perf_counter() - started) * 1000)
-                    session.report(tool_name, tool_input, {"error": str(exc)})
+                    if session is not None:
+                        session.report(tool_name, tool_input, {"error": str(exc)})
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": block.id,

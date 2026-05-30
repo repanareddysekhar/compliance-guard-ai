@@ -3,8 +3,9 @@ from typing import List, Union
 from pydantic import field_validator
 
 class Settings(BaseSettings):
-    # ArmorIQ SDK
-    ARMORIQ_API_KEY: str
+    # ArmorIQ SDK (optional — set ARMORIQ_ENABLED=true to activate)
+    ARMORIQ_ENABLED: bool = False
+    ARMORIQ_API_KEY: str = ""
     ARMORIQ_ENFORCEMENT_MODE: str = "blocking"
     ARMORIQ_CRYPTOGRAPHIC_AUDIT: bool = True
 
@@ -17,8 +18,12 @@ class Settings(BaseSettings):
     LLM_TIMEOUT_SECONDS: float = 120.0
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
-    ARMORIQ_MODE: str = "local"
+    ARMORIQ_MODE: str = "sdk"
     ARMORIQ_USER_ID: str = "complianceguard-system"
+    ARMORIQ_USER_EMAIL: str = "scanner@complianceguard.local"
+    ARMORIQ_AGENT_ID: str = "ComplianceGuard-Scanner"
+    ARMORIQ_MCP_NAME: str = "ComplianceGuard"
+    ARMORIQ_TOKEN_VALIDITY_SECONDS: int = 3600
 
     # Database
     DATABASE_URL: str

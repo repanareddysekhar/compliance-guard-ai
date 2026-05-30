@@ -35,7 +35,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - ARMORIQ_API_KEY=${ARMORIQ_API_KEY}
+      - ARMORIQ_ENABLED=${ARMORIQ_ENABLED:-false}
+      - ARMORIQ_API_KEY=${ARMORIQ_API_KEY:-}
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/complianceguard
       - COMPLIANCEGUARD_API_KEY=${COMPLIANCEGUARD_API_KEY}
       - LLM_PROVIDER=ollama
@@ -43,6 +44,10 @@ services:
       - LLM_MODEL=llama3.2:3b
       - LLM_MAX_TURNS=${LLM_MAX_TURNS:-60}
       - LLM_TIMEOUT_SECONDS=${LLM_TIMEOUT_SECONDS:-300}
+      - ARMORIQ_MODE=${ARMORIQ_MODE:-sdk}
+      - ARMORIQ_USER_EMAIL=${ARMORIQ_USER_EMAIL:-scanner@complianceguard.local}
+      - ARMORIQ_AGENT_ID=${ARMORIQ_AGENT_ID:-ComplianceGuard-Scanner}
+      - ARMORIQ_MCP_NAME=${ARMORIQ_MCP_NAME:-ComplianceGuard}
       - OPA_POLICY_PATH=/app/backend/policies/
     depends_on:
       ollama-init:

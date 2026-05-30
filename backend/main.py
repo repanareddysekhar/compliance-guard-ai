@@ -6,6 +6,7 @@ from backend.api import scan, report, violations, audit, ws, policies
 from backend.settings import settings
 from backend.db.database import engine, Base
 from backend.agent.llm_health import LLMHealthError, check_llm_health
+from backend.armoriq_client import check_armoriq_health
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,10 +40,18 @@ app.include_router(ws.router)
 
 @app.get("/health")
 async def health_check():
-    result = {"status": "healthy", "llm": {"status": "unknown"}}
+    result = {"status": "healthy", "llm": {"status": "unknown"}, "armoriq": {"status": "unknown"}}
     try:
         result["llm"] = await check_llm_health()
     except LLMHealthError as exc:
         result["status"] = "degraded"
         result["llm"] = {"status": "error", "detail": str(exc)}
+    try:
+        if settings.ARMORIQ_ENABLED:
+            result["armoriq"] = await check_armoriq_health()
+        else:
+            result["armoriq"] = {"status": "disabled"}
+    except Exception as exc:
+        result["status"] = "degraded"
+        result["armoriq"] = {"status": "error", "detail": str(exc)}
     return result

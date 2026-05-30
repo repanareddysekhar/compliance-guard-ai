@@ -1,7 +1,6 @@
 import os
 
 from backend.agent.fips_rules import CODE_EXTENSIONS
-from backend.agent.tools import crypto_checker, opa_query
 from backend.armoriq_shims import Tool
 
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", "dist", "build"}
@@ -47,7 +46,7 @@ def build_scan_tools(repo_path: str) -> list[Tool]:
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as handle:
                 content = handle.read()
-            return {"content": content, "path": path.replace(os.sep, "/")}
+            return {"content": content, "path": path.replace(os.sep, "/"), "lines": len(content.splitlines())}
         except OSError as exc:
             return {"error": str(exc)}
 
@@ -76,6 +75,32 @@ def build_scan_tools(repo_path: str) -> list[Tool]:
             return {"error": str(exc)}
 
         return {"dependencies": dependencies, "manifest": manifest_path.replace(os.sep, "/")}
+
+    def report_finding_impl(
+        file_path: str,
+        category: str,
+        finding: str,
+        description: str,
+        remediation: str,
+        severity: str = "MED",
+        line_number: int | str | None = None,
+    ) -> dict:
+        parsed_line: int | None = None
+        if isinstance(line_number, int):
+            parsed_line = line_number
+        elif isinstance(line_number, str) and line_number.strip().isdigit():
+            parsed_line = int(line_number.strip())
+
+        return {
+            "recorded": True,
+            "file_path": file_path,
+            "category": category.upper(),
+            "finding": finding,
+            "description": description,
+            "remediation": remediation,
+            "severity": severity.upper(),
+            "line_number": parsed_line,
+        }
 
     return [
         Tool(
@@ -109,8 +134,23 @@ def build_scan_tools(repo_path: str) -> list[Tool]:
                 },
             },
         ),
-        crypto_checker.tool,
-        opa_query.tool,
+        Tool(
+            name="report_finding",
+            description="Record a compliance violation found during your analysis",
+            func=report_finding_impl,
+            parameters={
+                "file_path": {"type": "string", "description": "Repo-relative path where the issue was found"},
+                "category": {
+                    "type": "string",
+                    "description": "CRYPTOGRAPHIC | CONTAINER | DEPENDENCY | ACCESS_CONTROL | HEADER",
+                },
+                "finding": {"type": "string", "description": "Short finding identifier, e.g. MD5, root_user, outdated"},
+                "description": {"type": "string", "description": "What the violation is and why it matters"},
+                "remediation": {"type": "string", "description": "Step-by-step fix recommendation"},
+                "severity": {"type": "string", "description": "HIGH | MED | LOW", "required": False},
+                "line_number": {"type": "integer", "description": "Line number if applicable", "required": False},
+            },
+        ),
     ]
 
 

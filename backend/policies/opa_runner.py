@@ -1,5 +1,5 @@
 from backend.armoriq_shims import OPARunner
-from backend.armoriq_client import armoriq
+from backend.armoriq_client import get_armoriq_client
 from backend.settings import settings
 
 CRYPTOGRAPHIC_BANNED = {"MD5", "SHA1", "DES", "3DES", "RC4", "TLSV1.0", "TLSV1.1", "DISABLED_CERT_VALIDATION"}
@@ -31,14 +31,15 @@ def _evaluate_cryptographic_policy(input_data: dict) -> PolicyEvaluationResult:
     return PolicyEvaluationResult(allowed=True, violations=[])
 
 
-opa = OPARunner(
-    client=armoriq,
-    policy_bundle_path=settings.OPA_POLICY_PATH,
-    decision_log=True,
-)
+def _get_opa_runner():
+    return OPARunner(
+        client=get_armoriq_client(),
+        policy_bundle_path=settings.OPA_POLICY_PATH,
+        decision_log=True,
+    )
 
 
 async def evaluate_policy(policy: str, input_data: dict):
     if policy.endswith("cryptographic") or policy == "compliance/cryptographic":
         return _evaluate_cryptographic_policy(input_data)
-    return await opa.evaluate(policy=policy, input=input_data)
+    return await _get_opa_runner().evaluate(policy=policy, input=input_data)
