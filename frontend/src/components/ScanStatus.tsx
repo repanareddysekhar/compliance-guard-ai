@@ -5,9 +5,19 @@ import { Terminal, Activity } from 'lucide-react';
 interface ScanStatusProps {
   events: WsEvent[];
   status: string;
+  scanId?: string | null;
 }
 
-const ScanStatus: React.FC<ScanStatusProps> = ({ events, status }) => {
+const ScanStatus: React.FC<ScanStatusProps> = ({ events, status, scanId }) => {
+  const pendingTrace = scanId ? [
+    { label: 'QUEUED', message: `Scan accepted: ${scanId}` },
+    { label: 'CONNECT', message: 'Opening live WebSocket trace...' },
+    { label: 'WAIT', message: 'Waiting for scanner events from backend.' },
+  ] : [
+    { label: 'IDLE', message: 'Start a scan to stream agent activity here.' },
+    { label: 'TIP', message: 'Use a container path like /scan-repos/repana/my-repo.' },
+  ];
+
   return (
     <div className="bg-slate-900 rounded-xl shadow-lg border border-slate-800 overflow-hidden">
       <div className="px-4 py-3 bg-slate-800/50 border-b border-slate-800 flex justify-between items-center">
@@ -28,7 +38,13 @@ const ScanStatus: React.FC<ScanStatusProps> = ({ events, status }) => {
       </div>
       <div className="p-4 h-64 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-1 bg-slate-950/50">
         {events.length === 0 ? (
-          <div className="text-slate-600 italic">No active process...</div>
+          pendingTrace.map((item) => (
+            <div key={item.label} className="flex gap-3 border-l border-slate-800 pl-3 pb-1 relative">
+              <div className="absolute -left-[1px] top-1.5 w-[3px] h-[3px] rounded-full bg-slate-700"></div>
+              <span className="w-16 shrink-0 text-slate-600 font-bold">{item.label}</span>
+              <span className="text-slate-400">{item.message}</span>
+            </div>
+          ))
         ) : (
           events.map((event, idx) => (
             <div key={idx} className="flex gap-3 border-l border-slate-800 pl-3 pb-1 relative">

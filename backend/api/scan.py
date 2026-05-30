@@ -3,9 +3,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 import uuid
 from backend.db.database import get_db
-from backend.db.models import ScanLog, ScanRun
+from backend.db.models import AuditEvent, ScanLog, ScanRun
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from backend.agent.scan_agent import run_scan
 from backend.api.ws import manager
 
@@ -72,7 +72,33 @@ async def get_scan_status(scan_id: uuid.UUID, db: AsyncSession = Depends(get_db)
 async def list_scans(limit: int = 25, db: AsyncSession = Depends(get_db)):
     query = select(ScanRun).order_by(ScanRun.started_at.desc()).limit(min(limit, 100))
     result = await db.execute(query)
-    return result.scalars().all()
+    scan_runs = result.scalars().all()
+    response = []
+
+    for scan_run in scan_runs:
+        audit_count = await db.scalar(
+            select(func.count()).select_from(AuditEvent).where(AuditEvent.scan_run_id == scan_run.id)
+        )
+        log_count = await db.scalar(
+            select(func.count()).select_from(ScanLog).where(ScanLog.scan_run_id == scan_run.id)
+        )
+        response.append({
+            "id": str(scan_run.id),
+            "service_name": scan_run.service_name,
+            "repo_path": scan_run.repo_path,
+            "status": scan_run.status,
+            "standards": scan_run.standards,
+            "started_at": scan_run.started_at.isoformat() if scan_run.started_at else None,
+            "completed_at": scan_run.completed_at.isoformat() if scan_run.completed_at else None,
+            "services_scanned": scan_run.services_scanned,
+            "violations_found": scan_run.violations_found,
+            "auto_fixed": scan_run.auto_fixed,
+            "compliance_score": float(scan_run.compliance_score) if scan_run.compliance_score is not None else None,
+            "audit_count": audit_count or 0,
+            "log_count": log_count or 0,
+        })
+
+    return response
 
 @router.get("/scan/{scan_id}/logs")
 async def get_scan_logs(scan_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
@@ -82,4 +108,12 @@ async def get_scan_logs(scan_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
     query = select(ScanLog).where(ScanLog.scan_run_id == scan_id).order_by(ScanLog.timestamp.asc())
     result = await db.execute(query)
-    return result.scalars().all()
+    logs = result.scalars().all()
+    return [{
+        "id": str(log.id),
+        "scan_run_id": str(log.scan_run_id),
+        "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+        "event_type": log.event_type,
+        "message": log.message,
+        "payload": log.payload,
+    } for log in logs]

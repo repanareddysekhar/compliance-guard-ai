@@ -168,7 +168,7 @@ const App: React.FC = () => {
               <div className="grid grid-cols-1 2xl:grid-cols-12 gap-8 items-start pb-10">
                 <div className="2xl:col-span-4 space-y-8">
                   <ScanTrigger onScanTriggered={setCurrentScanId} />
-                  <ScanStatus events={events} status={status} />
+                  <ScanStatus events={events} status={status} scanId={currentScanId} />
                 </div>
                 
                 <div className="2xl:col-span-8 h-full">
@@ -239,6 +239,10 @@ const App: React.FC = () => {
                           <span>{new Date(scan.started_at).toLocaleString()}</span>
                           <span>•</span>
                           <span>{scan.violations_found} violations</span>
+                          <span>•</span>
+                          <span>{scan.log_count ?? 0} logs</span>
+                          <span>•</span>
+                          <span>{scan.audit_count ?? 0} audit events</span>
                           {scan.compliance_score !== undefined && (
                             <>
                               <span>•</span>
@@ -284,8 +288,15 @@ const App: React.FC = () => {
 
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                   <div className="p-6 border-b border-slate-100">
-                    <h2 className="text-xl font-black text-slate-800 tracking-tight">Cryptographic Audit Trail</h2>
-                    <p className="text-slate-500 font-medium">Signed agent actions persisted in PostgreSQL.</p>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <h2 className="text-xl font-black text-slate-800 tracking-tight">Cryptographic Audit Trail</h2>
+                        <p className="text-slate-500 font-medium">Signed agent actions persisted in PostgreSQL.</p>
+                      </div>
+                      <span className="rounded-lg bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-700">
+                        {auditEvents.length} signed events
+                      </span>
+                    </div>
                   </div>
                   <div className="overflow-x-auto">
                   <table className="w-full text-left">
@@ -302,7 +313,7 @@ const App: React.FC = () => {
                       {auditEvents.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="px-8 py-20 text-center text-slate-400 font-medium italic">
-                            No audit events recorded for the current scan session.
+                            No signed audit rows found for this scan. If this is an older scan, run a new scan after restarting the backend.
                           </td>
                         </tr>
                       ) : (

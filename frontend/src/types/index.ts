@@ -16,6 +16,8 @@ export interface ScanRun {
   violations_found: number;
   auto_fixed: number;
   compliance_score?: number;
+  audit_count?: number;
+  log_count?: number;
 }
 
 export interface ScanLog {
