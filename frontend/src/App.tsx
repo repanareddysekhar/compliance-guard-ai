@@ -72,75 +72,78 @@ const App: React.FC = () => {
   }, [activeView, selectedHistoryScanId]);
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
-      {/* Sidebar - Simple Navigation */}
-      <aside className={`bg-white border-r border-slate-200 flex flex-col py-6 px-4 shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'w-20 items-center' : 'w-20 lg:w-64 items-center lg:items-stretch'}`}>
-        <div className={`flex items-center gap-3 px-2 mb-10 ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
-          <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200 cursor-pointer" onClick={() => setActiveView('dashboard')}>
-            <Shield className="text-white h-6 w-6" />
+    <div className="flex h-screen bg-[#080d16] text-slate-100 overflow-hidden font-sans">
+      {/* Sidebar - Translucent Modern Navigation */}
+      <aside className={`bg-[#0b1322]/40 backdrop-blur-md border-r border-slate-800/80 flex flex-col py-6 px-4 shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'w-20 items-center' : 'w-20 lg:w-64 items-center lg:items-stretch'}`}>
+        <div className={`flex items-center gap-3 px-2 mb-10 w-full ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+          <div 
+            className="bg-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-500/20 cursor-pointer hover:scale-105 transition-transform duration-300" 
+            onClick={() => setActiveView('dashboard')}
+          >
+            <Shield className="text-white h-5 w-5" />
           </div>
           <div className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} overflow-hidden`}>
-            <h1 className="text-sm font-black tracking-tight whitespace-nowrap">COMPLIANCEGUARD</h1>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter leading-none">v2.0 Autonomous</p>
+            <h1 className="text-xs font-black tracking-widest bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent uppercase whitespace-nowrap leading-none mb-1">ComplianceGuard</h1>
+            <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest leading-none">v2.0 Autonomous</p>
           </div>
           <button
             type="button"
             onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-            className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:flex'} h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors`}
+            className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:flex'} h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-800 hover:text-slate-200 transition-colors cursor-pointer`}
             aria-label="Collapse sidebar"
           >
-            <PanelLeftClose size={16} />
+            <PanelLeftClose size={15} />
           </button>
         </div>
 
-        <nav className="flex-1 space-y-2">
+        <nav className="flex-1 space-y-2 w-full">
           <div 
             onClick={() => setActiveView('dashboard')}
-            className={`p-3 rounded-xl flex items-center gap-3 cursor-pointer group transition-all ${
-              activeView === 'dashboard' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+            className={`p-3.5 rounded-xl flex items-center gap-3.5 cursor-pointer group transition-all duration-300 ${
+              activeView === 'dashboard' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-md' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 border border-transparent'
             }`}
           >
-            <Activity size={20} className="shrink-0" />
-            <span className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} text-sm font-bold ${activeView === 'dashboard' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Active Scans</span>
+            <Activity size={18} className="shrink-0" />
+            <span className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} text-xs font-bold ${activeView === 'dashboard' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Active Scans</span>
           </div>
           <div 
             onClick={() => setActiveView('policies')}
-            className={`p-3 rounded-xl flex items-center gap-3 cursor-pointer group transition-all ${
-              activeView === 'policies' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+            className={`p-3.5 rounded-xl flex items-center gap-3.5 cursor-pointer group transition-all duration-300 ${
+              activeView === 'policies' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-md' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 border border-transparent'
             }`}
           >
-            <Book size={20} className="shrink-0" />
-            <span className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} text-sm font-bold ${activeView === 'policies' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Policy Library</span>
+            <Book size={18} className="shrink-0" />
+            <span className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} text-xs font-bold ${activeView === 'policies' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Policy Library</span>
           </div>
           <div 
             onClick={() => setActiveView('audit')}
-            className={`p-3 rounded-xl flex items-center gap-3 cursor-pointer group transition-all ${
-              activeView === 'audit' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+            className={`p-3.5 rounded-xl flex items-center gap-3.5 cursor-pointer group transition-all duration-300 ${
+              activeView === 'audit' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-md' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 border border-transparent'
             }`}
           >
-            <History size={20} className="shrink-0" />
-            <span className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} text-sm font-bold ${activeView === 'audit' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Scan History</span>
+            <History size={18} className="shrink-0" />
+            <span className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} text-xs font-bold ${activeView === 'audit' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Scan History</span>
           </div>
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-slate-100">
+        <div className="mt-auto pt-6 border-t border-slate-800/80 w-full flex flex-col items-center">
           {sidebarCollapsed && (
             <button
               type="button"
               onClick={() => setSidebarCollapsed(false)}
-              className="mb-4 hidden h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 lg:flex"
+              className="mb-4 hidden h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-800 hover:text-slate-200 lg:flex cursor-pointer"
               aria-label="Expand sidebar"
             >
-              <PanelLeftOpen size={17} />
+              <PanelLeftOpen size={16} />
             </button>
           )}
-          <div className={`flex items-center gap-3 px-2 py-3 rounded-xl bg-slate-50 border border-slate-100 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+          <div className={`flex items-center gap-3 px-3 py-3 rounded-xl bg-slate-900/30 border border-slate-800/80 w-full ${sidebarCollapsed ? 'justify-center' : ''}`}>
             <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-black shadow-sm shrink-0">
               TS
             </div>
             <div className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} overflow-hidden`}>
-              <p className="text-xs font-black truncate leading-none mb-1">Stacktracers</p>
-              <p className="text-[9px] text-slate-400 font-mono font-bold leading-none uppercase">ID: B1A342C5</p>
+              <p className="text-[11px] font-bold truncate leading-none mb-1 text-slate-300">Stacktracers</p>
+              <p className="text-[8px] text-slate-500 font-mono font-bold leading-none uppercase">ID: B1A342C5</p>
             </div>
           </div>
         </div>
@@ -148,23 +151,23 @@ const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 flex items-center justify-between z-10">
+        <header className="h-16 bg-[#080d16]/70 backdrop-blur-md border-b border-slate-800/80 px-8 flex items-center justify-between z-10">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dashboard</span>
-              <span className="text-slate-300">/</span>
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-widest">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Dashboard</span>
+              <span className="text-slate-700">/</span>
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
                 {activeView === 'dashboard' ? 'Scan Control' : activeView === 'policies' ? 'Policy Management' : 'Scan History'}
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">System Operational</span>
+          <div className="flex items-center gap-3.5">
+            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)] animate-pulse"></div>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">System Operational</span>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 md:px-10 md:py-8">
+        <div className="flex-1 overflow-y-auto px-6 py-6 md:px-10 md:py-8 fade-in">
           {activeView === 'dashboard' && (
             <div className="space-y-8">
               <StatsBar 
@@ -189,24 +192,24 @@ const App: React.FC = () => {
 
           {activeView === 'policies' && (
             <div className="space-y-6 max-w-6xl">
-              <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
-                <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">Policy Governance</h2>
-                <p className="text-slate-500 font-medium">Manage and review active OPA policies enforced by ArmorIQ.</p>
+              <div className="bg-slate-900/30 backdrop-blur-md rounded-2xl p-8 border border-slate-800/80 shadow-lg">
+                <h2 className="text-xl font-bold text-slate-200 mb-1.5 tracking-tight">Policy Governance</h2>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">Manage and review active OPA policies enforced by ArmorIQ.</p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8">
                   {policies.map(p => (
-                    <div key={p.id} className="p-6 rounded-xl border border-slate-100 bg-slate-50/50 hover:border-indigo-100 hover:bg-white transition-all group cursor-pointer">
+                    <div key={p.id} className="p-6 rounded-2xl border border-slate-800/80 bg-slate-950/20 hover:border-indigo-500/30 hover:bg-slate-900/30 transition-all duration-300 group cursor-pointer">
                       <div className="flex justify-between items-start mb-4">
-                        <div className="p-2 bg-white rounded-lg shadow-sm group-hover:text-indigo-600 transition-colors">
-                          <Code size={20} />
+                        <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400 group-hover:scale-105 transition-transform duration-300">
+                          <Code size={18} />
                         </div>
-                        <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded uppercase">{p.status}</span>
+                        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">{p.status}</span>
                       </div>
-                      <h3 className="font-bold text-slate-800">{p.name}</h3>
-                      <p className="text-xs text-slate-400 font-mono mt-1">{p.path}.rego</p>
-                      <div className="mt-6 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.rules} Logic Rules</span>
-                        <ExternalLink size={14} className="text-slate-300 group-hover:text-indigo-500" />
+                      <h3 className="font-bold text-sm text-slate-200 tracking-tight group-hover:text-slate-100 transition-colors">{p.name}</h3>
+                      <p className="text-[10px] text-slate-500 font-mono mt-1">{p.path}.rego</p>
+                      <div className="mt-6 flex items-center justify-between border-t border-slate-800/40 pt-4">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{p.rules} Logic Rules</span>
+                        <ExternalLink size={13} className="text-slate-600 group-hover:text-indigo-400 transition-colors" />
                       </div>
                     </div>
                   ))}
@@ -216,38 +219,39 @@ const App: React.FC = () => {
           )}
 
           {activeView === 'audit' && (
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-              <div className="xl:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-8 border-b border-slate-100">
-                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">Scan History</h2>
-                  <p className="text-slate-500 font-medium">Pick a scan to replay persisted logs.</p>
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+              {/* Left Panel: Scan History List */}
+              <div className="xl:col-span-4 bg-slate-900/30 backdrop-blur-md rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg">
+                <div className="p-6 border-b border-slate-800/80 bg-slate-900/40">
+                  <h2 className="text-base font-bold text-slate-200 tracking-tight">Scan History</h2>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">Pick a scan run to review audit data.</p>
                 </div>
-                <div className="max-h-[680px] overflow-y-auto divide-y divide-slate-100">
+                <div className="max-h-[620px] overflow-y-auto divide-y divide-slate-800/40 scrollbar-thin">
                   {scanRuns.length === 0 ? (
-                    <div className="p-8 text-sm font-medium text-slate-400">No scans persisted yet.</div>
+                    <div className="p-8 text-xs font-bold text-slate-500 italic text-center">No scans persisted yet.</div>
                   ) : (
                     scanRuns.map((scan) => (
                       <button
                         key={scan.id}
                         type="button"
                         onClick={() => setSelectedHistoryScanId(scan.id)}
-                        className={`w-full text-left p-5 transition-colors ${selectedHistoryScanId === scan.id ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
+                        className={`w-full text-left p-5 transition-colors cursor-pointer flex flex-col ${selectedHistoryScanId === scan.id ? 'bg-indigo-500/5' : 'hover:bg-slate-900/20'}`}
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm font-black text-slate-800">{scan.service_name}</span>
-                          <span className={`rounded px-2 py-0.5 text-[10px] font-black ${
-                            scan.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                            scan.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
-                            scan.status === 'RUNNING' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                        <div className="flex items-center justify-between gap-3 w-full">
+                          <span className="text-xs font-bold text-slate-200 group-hover:text-slate-100">{scan.service_name}</span>
+                          <span className={`rounded-full px-2 py-0.2 text-[8px] font-black border ${
+                            scan.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                            scan.status === 'FAILED' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                            scan.status === 'RUNNING' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'
                           }`}>
                             {scan.status}
                           </span>
                         </div>
-                        <p className="mt-2 break-all text-[11px] font-mono text-slate-500">Scan ID: {scan.id}</p>
-                        <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-bold text-slate-500">
-                          <span>{new Date(scan.started_at).toLocaleString()}</span>
+                        <p className="mt-2 break-all text-[9px] font-mono text-slate-500">ID: {scan.id}</p>
+                        <div className="mt-3 flex flex-wrap gap-2 text-[9px] font-bold text-slate-500 border-t border-slate-800/20 pt-2 w-full">
+                          <span>{new Date(scan.started_at).toLocaleDateString()}</span>
                           <span>•</span>
-                          <span>{scan.violations_found} violations</span>
+                          <span className="text-indigo-400">{scan.violations_found} violations</span>
                           <span>•</span>
                           <span>{scan.log_count ?? 0} logs</span>
                           <span>•</span>
@@ -255,7 +259,7 @@ const App: React.FC = () => {
                           {scan.compliance_score !== undefined && (
                             <>
                               <span>•</span>
-                              <span>{Number(scan.compliance_score).toFixed(0)} score</span>
+                              <span className="text-emerald-400">{Number(scan.compliance_score).toFixed(0)} score</span>
                             </>
                           )}
                         </div>
@@ -265,69 +269,71 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* Right Panel: Persistence Telemetry details */}
               <div className="xl:col-span-8 space-y-6">
                 {selectedHistoryScan && (
-                  <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5">
+                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/30 backdrop-blur-md shadow-lg overflow-hidden">
+                    <div className="border-b border-slate-800/80 bg-slate-900/40 px-6 py-5">
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Selected Evidence Package</p>
-                          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-900">{selectedHistoryScan.service_name}</h2>
-                          <p className="mt-1 break-all text-xs font-mono text-slate-500">{selectedHistoryScan.id}</p>
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-indigo-400">Selected Evidence Package</p>
+                          <h2 className="mt-1 text-lg font-bold tracking-tight text-slate-200">{selectedHistoryScan.service_name}</h2>
+                          <p className="mt-1 break-all text-[10px] font-mono text-slate-500">{selectedHistoryScan.id}</p>
                         </div>
-                        <span className={`rounded-lg px-3 py-1 text-[10px] font-black ${
-                          selectedHistoryScan.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                          selectedHistoryScan.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
-                          selectedHistoryScan.status === 'RUNNING' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                        <span className={`rounded-full px-3 py-0.5 text-[9px] font-bold border ${
+                          selectedHistoryScan.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                          selectedHistoryScan.status === 'FAILED' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                          selectedHistoryScan.status === 'RUNNING' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-slate-800 text-slate-500 border-slate-700/60'
                         }`}>
                           {selectedHistoryScan.status}
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-px bg-slate-100 md:grid-cols-4">
-                      <div className="bg-white px-5 py-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Violations</p>
-                        <p className="mt-1 text-2xl font-black text-slate-900">{selectedHistoryScan.violations_found}</p>
+                    <div className="grid grid-cols-2 gap-px bg-slate-800/40 md:grid-cols-4">
+                      <div className="bg-slate-950/20 px-5 py-4">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Violations</p>
+                        <p className="mt-1 text-xl font-bold text-rose-400 glow-rose">{selectedHistoryScan.violations_found}</p>
                       </div>
-                      <div className="bg-white px-5 py-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Execution Logs</p>
-                        <p className="mt-1 text-2xl font-black text-slate-900">{selectedHistoryScan.log_count ?? scanLogs.length}</p>
+                      <div className="bg-slate-950/20 px-5 py-4">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Execution Logs</p>
+                        <p className="mt-1 text-xl font-bold text-slate-200">{selectedHistoryScan.log_count ?? scanLogs.length}</p>
                       </div>
-                      <div className="bg-white px-5 py-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audit Events</p>
-                        <p className="mt-1 text-2xl font-black text-slate-900">{selectedHistoryScan.audit_count ?? historyAuditEvents.length}</p>
+                      <div className="bg-slate-950/20 px-5 py-4">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Audit Events</p>
+                        <p className="mt-1 text-xl font-bold text-slate-200">{selectedHistoryScan.audit_count ?? historyAuditEvents.length}</p>
                       </div>
-                      <div className="bg-white px-5 py-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Score</p>
-                        <p className="mt-1 text-2xl font-black text-slate-900">
-                          {selectedHistoryScan.compliance_score !== undefined ? Number(selectedHistoryScan.compliance_score).toFixed(0) : '--'}
+                      <div className="bg-slate-950/20 px-5 py-4">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Compliance Score</p>
+                        <p className="mt-1 text-xl font-bold text-emerald-400 glow-emerald">
+                          {selectedHistoryScan.compliance_score !== undefined ? `${Number(selectedHistoryScan.compliance_score).toFixed(0)}%` : '--'}
                         </p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                  <div className="p-6 border-b border-slate-100 flex flex-wrap items-start justify-between gap-4">
+                {/* Persisted Logs */}
+                <div className="bg-slate-900/30 backdrop-blur-md rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg">
+                  <div className="px-6 py-4.5 border-b border-slate-800/80 bg-slate-900/40 flex flex-wrap items-center justify-between gap-4">
                     <div>
-                      <h2 className="text-xl font-black text-slate-800 tracking-tight">Persisted Execution Logs</h2>
-                      <p className="text-xs font-mono text-slate-500 mt-1">
+                      <h2 className="text-sm font-bold text-slate-200 tracking-tight">Persisted Execution Logs</h2>
+                      <p className="text-[10px] font-mono text-slate-500 mt-0.5">
                         {selectedHistoryScanId ? `Scan ID: ${selectedHistoryScanId}` : 'Select a scan'}
                       </p>
                     </div>
-                    <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">
+                    <span className="rounded-full bg-slate-800 border border-slate-700/50 px-2.5 py-0.5 text-[9px] font-bold text-slate-400">
                       {scanLogs.length} events
                     </span>
                   </div>
-                  <div className="h-80 overflow-y-auto bg-slate-950 p-4 font-mono text-[11px] leading-relaxed">
+                  <div className="h-80 overflow-y-auto bg-[#070b12] p-5 font-mono text-[10px] leading-relaxed scrollbar-thin">
                     {scanLogs.length === 0 ? (
-                      <div className="text-slate-600 italic">No persisted logs for this scan.</div>
+                      <div className="text-slate-600 italic">No logs persisted for this scan run.</div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {scanLogs.map((log) => (
-                          <div key={log.id} className="grid grid-cols-[88px_120px_1fr] gap-3 border-l border-slate-800 pl-3">
-                            <span className="text-slate-600">{new Date(log.timestamp).toLocaleTimeString([], { hour12: false })}</span>
-                            <span className="font-black text-indigo-300">{log.event_type}</span>
+                          <div key={log.id} className="grid grid-cols-[80px_110px_1fr] gap-3 border-l border-slate-800 pl-3">
+                            <span className="text-slate-500">{new Date(log.timestamp).toLocaleTimeString([], { hour12: false })}</span>
+                            <span className="font-bold text-indigo-400 uppercase tracking-tighter">{log.event_type}</span>
                             <span className="text-slate-300">{log.message}</span>
                           </div>
                         ))}

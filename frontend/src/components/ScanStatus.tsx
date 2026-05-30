@@ -21,84 +21,89 @@ const ScanStatus: React.FC<ScanStatusProps> = ({ events, auditEvents = [], statu
   const hasTrace = events.length > 0 || auditEvents.length > 0;
 
   return (
-    <div className="bg-slate-900 rounded-xl shadow-lg border border-slate-800 overflow-hidden">
-      <div className="px-4 py-3 bg-slate-800/50 border-b border-slate-800 flex justify-between items-center">
-        <div className="flex items-center gap-2 text-slate-300">
-          <Terminal size={14} className="text-emerald-400" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Live Execution Trace</span>
+    <div className="bg-[#0c121e]/90 rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg shadow-black/30">
+      {/* Console Header */}
+      <div className="px-5 py-3.5 bg-slate-900/60 border-b border-slate-800/80 flex justify-between items-center">
+        <div className="flex items-center gap-2.5 text-slate-300">
+          <Terminal size={14} className="text-indigo-400" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Live Execution Trace</span>
         </div>
         <div className="flex items-center gap-2">
-          {status === 'RUNNING' && <Activity size={12} className="text-blue-400 animate-pulse" />}
-          <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${
-            status === 'RUNNING' ? 'bg-blue-500/20 text-blue-400' :
-            status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-400' :
-            status === 'FAILED' ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-700 text-slate-400'
+          {status === 'RUNNING' && <Activity size={12} className="text-indigo-400 animate-pulse" />}
+          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+            status === 'RUNNING' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' :
+            status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+            status === 'FAILED' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-800 text-slate-500 border border-slate-700/50'
           }`}>
             {status}
           </span>
         </div>
       </div>
-      <div className="p-4 h-80 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-1 bg-slate-950/50">
+
+      {/* Terminal Viewport */}
+      <div className="p-5 h-80 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-2.5 bg-[#090d16]/80 scrollbar-thin">
         {!hasTrace ? (
           pendingTrace.map((item) => (
-            <div key={item.label} className="flex gap-3 border-l border-slate-800 pl-3 pb-1 relative">
-              <div className="absolute -left-[1px] top-1.5 w-[3px] h-[3px] rounded-full bg-slate-700"></div>
-              <span className="w-16 shrink-0 text-slate-600 font-bold">{item.label}</span>
+            <div key={item.label} className="flex gap-4 border-l border-slate-800/60 pl-3 pb-1 relative">
+              <div className="absolute -left-[2px] top-1.5 w-1 h-1 rounded-full bg-slate-700 shadow-[0_0_8px_rgba(100,116,139,0.5)]"></div>
+              <span className="w-16 shrink-0 text-slate-500 font-bold tracking-tighter uppercase">{item.label}</span>
               <span className="text-slate-400">{item.message}</span>
             </div>
           ))
         ) : (
           <>
             {events.map((event, idx) => (
-              <div key={`event-${idx}`} className="flex gap-3 border-l border-slate-800 pl-3 pb-1 relative">
-                <div className="absolute -left-[1px] top-1.5 w-[3px] h-[3px] rounded-full bg-slate-700"></div>
-                <span className="text-slate-600 shrink-0 font-bold">{new Date().toLocaleTimeString([], { hour12: false })}</span>
+              <div key={`event-${idx}`} className="flex gap-4 border-l border-slate-800/60 pl-3 pb-1 relative">
+                <div className="absolute -left-[2px] top-1.5 w-1 h-1 rounded-full bg-slate-700"></div>
+                <span className="text-slate-600 shrink-0 font-bold">
+                  {new Date().toLocaleTimeString([], { hour12: false })}
+                </span>
                 <div className="flex-1">
                   {event.type === 'SCAN_STARTED' && (
-                    <span className="text-blue-400 font-bold">START: {event.service}</span>
+                    <span className="text-indigo-400 font-bold">▶ START SCAN: {event.service}</span>
                   )}
                   {event.type === 'TOOL_CALLED' && (
-                    <div className="flex flex-col">
+                    <div className="flex flex-col gap-0.5">
                       <span className="text-slate-300">
-                        <span className="text-emerald-400 font-bold">CALL</span> {event.tool}
+                        <span className="text-emerald-400 font-bold">⚒ CALL TOOL:</span> {event.tool}
                       </span>
-                      <span className="text-slate-500 italic text-[10px]">{event.intent}</span>
+                      <span className="text-slate-500 italic text-[10px] pl-3">↳ {event.intent}</span>
                     </div>
                   )}
                   {event.type === 'VIOLATION_FOUND' && (
-                    <span className="text-rose-400 font-bold">
-                      FOUND: {event.violation?.description}
+                    <span className="text-rose-400 font-bold bg-rose-500/5 border border-rose-500/10 px-1.5 py-0.5 rounded">
+                      ⚠ DISCOVERED: {event.violation?.description}
                     </span>
                   )}
                   {event.type === 'SCAN_COMPLETED' && (
-                    <span className="text-emerald-400 font-bold">SUCCESS: Scan finalized.</span>
+                    <span className="text-emerald-400 font-bold">✔ SUCCESS: Compliance scan completed.</span>
                   )}
                   {event.type === 'SCAN_FAILED' && (
-                    <span className="text-rose-500 font-bold">FAILURE: {event.error}</span>
+                    <span className="text-rose-500 font-bold">✘ FAILURE: {event.error}</span>
                   )}
                 </div>
               </div>
             ))}
             {auditEvents.map((event) => (
-              <div key={`audit-${event.event_id}`} className="flex gap-3 border-l border-indigo-900/80 pl-3 pb-1 relative">
-                <div className="absolute -left-[1px] top-1.5 w-[3px] h-[3px] rounded-full bg-indigo-400"></div>
+              <div key={`audit-${event.event_id}`} className="flex gap-4 border-l border-indigo-500/20 pl-3 pb-1 relative">
+                <div className="absolute -left-[2px] top-1.5 w-1 h-1 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
                 <span className="text-slate-600 shrink-0 font-bold">
                   {new Date(event.timestamp).toLocaleTimeString([], { hour12: false })}
                 </span>
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-indigo-300 font-black">AUDIT</span>
-                    <span className="text-slate-300">{event.tool_called}</span>
-                    <span className={`rounded px-1.5 py-0.5 text-[9px] font-black ${
-                      event.policy_decision === 'ALLOW' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
+                    <span className="text-indigo-400 font-bold tracking-tighter">🔒 AUDIT LOG</span>
+                    <span className="text-slate-300 font-bold">{event.tool_called}</span>
+                    <span className={`rounded-full px-2 py-0.2 text-[9px] font-bold ${
+                      event.policy_decision === 'ALLOW' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                     }`}>
                       {event.policy_decision}
                     </span>
-                    <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-bold text-indigo-200">
-                      sig {event.signature.substring(0, 12)}...
+                    <span className="rounded bg-slate-800/80 px-2 py-0.2 text-[9px] font-bold text-indigo-300 font-mono">
+                      sig:{event.signature.substring(0, 10)}
                     </span>
                   </div>
-                  <span className="text-slate-500 italic text-[10px]">{event.intent}</span>
+                  <span className="text-slate-500 italic text-[10px] pl-3">↳ {event.intent}</span>
                 </div>
               </div>
             ))}
