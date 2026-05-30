@@ -7,7 +7,7 @@ import AuditTrail from './components/AuditTrail';
 import { useScanWebSocket } from './hooks/useScanWebSocket';
 import { useViolations } from './hooks/useViolations';
 import { useAuditEvents } from './hooks/useAuditEvents';
-import { Shield, Activity, Book, History, ExternalLink, Code, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Shield, Activity, Book, History, Code, PanelLeftClose, PanelLeftOpen, ChevronRight, ChevronDown, Wrench } from 'lucide-react';
 import client from './api/client';
 import { AuditEvent, ScanLog, ScanRun, Violation } from './types';
 
@@ -19,6 +19,12 @@ interface Policy {
   path: string;
   status: string;
   rules: number;
+  description?: string;
+  category?: string;
+  severity?: string;
+  standards?: string[];
+  rules_list?: string[];
+  remediation?: string;
 }
 
 const App: React.FC = () => {
@@ -36,6 +42,7 @@ const App: React.FC = () => {
   const [historyAuditCollapsed, setHistoryAuditCollapsed] = useState(false);
   const [selectedHistoryScanId, setSelectedHistoryScanId] = useState<string | null>(null);
   const [policies, setPolicies] = useState<Policy[]>([]);
+  const [selectedPolicyId, setSelectedPolicyId] = useState<number | null>(null);
 
   // Mock stats for demo purposes
   const stats = {
@@ -197,22 +204,97 @@ const App: React.FC = () => {
                 <p className="text-xs text-slate-500 font-medium leading-relaxed">Manage and review active OPA policies enforced by ArmorIQ.</p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8">
-                  {policies.map(p => (
-                    <div key={p.id} className="p-6 rounded-2xl border border-slate-800/80 bg-slate-950/20 hover:border-indigo-500/30 hover:bg-slate-900/30 transition-all duration-300 group cursor-pointer">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400 group-hover:scale-105 transition-transform duration-300">
-                          <Code size={18} />
+                  {policies.map(p => {
+                    const isExpanded = selectedPolicyId === p.id;
+                    return (
+                      <div 
+                        key={p.id} 
+                        onClick={() => setSelectedPolicyId(isExpanded ? null : p.id)}
+                        className={`p-6 rounded-2xl border transition-all duration-300 bg-slate-950/20 hover:bg-slate-900/30 cursor-pointer flex flex-col justify-between ${
+                          isExpanded 
+                            ? 'border-indigo-500/50 shadow-[0_0_20px_rgba(99,102,241,0.15)] md:col-span-2' 
+                            : 'border-slate-800/80 hover:border-indigo-500/30'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400">
+                              <Code size={18} />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {p.severity && (
+                                <span className={`text-[8px] font-black px-2 py-0.5 rounded border ${
+                                  p.severity === 'HIGH' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                }`}>
+                                  {p.severity}
+                                </span>
+                              )}
+                              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">{p.status}</span>
+                            </div>
+                          </div>
+                          <h3 className="font-bold text-sm text-slate-200 tracking-tight">{p.name}</h3>
+                          <p className="text-[10px] text-slate-500 font-mono mt-1">{p.path}.rego</p>
+                          {p.description && (
+                            <p className="text-xs text-slate-400 font-medium mt-3 leading-relaxed">{p.description}</p>
+                          )}
                         </div>
-                        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">{p.status}</span>
+
+                        {isExpanded && (
+                          <div className="mt-6 border-t border-slate-800/80 pt-6 space-y-5 fade-in" onClick={(e) => e.stopPropagation()}>
+                            {/* Standards mapped */}
+                            {p.standards && p.standards.length > 0 && (
+                              <div>
+                                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Compliance Frameworks</h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {p.standards.map((std, i) => (
+                                    <span key={i} className="text-[9px] font-bold bg-slate-900 border border-slate-800 text-indigo-400 px-2.5 py-1 rounded-md">
+                                      {std}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Logic check list */}
+                            {p.rules_list && p.rules_list.length > 0 && (
+                              <div>
+                                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Evaluated Checkpoints ({p.rules})</h4>
+                                <ul className="space-y-2">
+                                  {p.rules_list.map((rule, idx) => (
+                                    <li key={idx} className="text-xs text-slate-300 flex items-start gap-2.5">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></span>
+                                      <span>{rule}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Remediation block */}
+                            {p.remediation && (
+                              <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-4 py-3 flex gap-3">
+                                <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400 h-fit">
+                                  <Wrench size={13} />
+                                </div>
+                                <div>
+                                  <h5 className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 mb-0.5">Governance Guide</h5>
+                                  <p className="text-xs leading-relaxed text-emerald-300/90 font-medium">{p.remediation}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="mt-6 flex items-center justify-between border-t border-slate-800/45 pt-4">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{p.rules} Logic Rules</span>
+                          <div className="text-slate-500 hover:text-indigo-400 transition-colors flex items-center gap-1">
+                            <span className="text-[9px] font-bold uppercase tracking-widest">{isExpanded ? 'Hide Details' : 'Show Details'}</span>
+                            {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                          </div>
+                        </div>
                       </div>
-                      <h3 className="font-bold text-sm text-slate-200 tracking-tight group-hover:text-slate-100 transition-colors">{p.name}</h3>
-                      <p className="text-[10px] text-slate-500 font-mono mt-1">{p.path}.rego</p>
-                      <div className="mt-6 flex items-center justify-between border-t border-slate-800/40 pt-4">
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{p.rules} Logic Rules</span>
-                        <ExternalLink size={13} className="text-slate-600 group-hover:text-indigo-400 transition-colors" />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
