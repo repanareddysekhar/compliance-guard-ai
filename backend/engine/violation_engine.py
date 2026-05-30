@@ -6,6 +6,9 @@ SEVERITY_RULES = {
         "SHA1":       "HIGH",
         "DES":        "HIGH",
         "RC4":        "HIGH",
+        "TLSv1.0":    "HIGH",
+        "TLSv1.1":    "HIGH",
+        "disabled_cert_validation": "HIGH",
         "hardcoded_key": "HIGH",
     },
     "DEPENDENCY": {

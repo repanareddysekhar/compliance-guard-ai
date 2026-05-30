@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Integer, Numeric, ARRAY, ForeignKey, Text
+from sqlalchemy import Column, String, DateTime, Integer, Numeric, ARRAY, ForeignKey, Text, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
@@ -48,3 +48,13 @@ class AuditEvent(Base):
     input_hash = Column(String)
     output_hash = Column(String)
     signature = Column(String)
+
+class ScanLog(Base):
+    __tablename__ = "scan_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    scan_run_id = Column(UUID(as_uuid=True), ForeignKey("scan_runs.id", ondelete="CASCADE"))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    event_type = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    payload = Column(JSON)

@@ -1,6 +1,6 @@
 import React from 'react';
 import { WsEvent } from '../types';
-import { Terminal, CheckCircle2, XCircle, Activity } from 'lucide-react';
+import { Terminal, Activity } from 'lucide-react';
 
 interface ScanStatusProps {
   events: WsEvent[];

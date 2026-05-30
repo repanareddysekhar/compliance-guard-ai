@@ -16,7 +16,7 @@ async def startup_event():
     logger.info("Initializing database tables...")
     async with engine.begin() as conn:
         # Import models here to ensure they are registered with Base.metadata
-        from backend.db.models import ScanRun, Violation, AuditEvent
+        from backend.db.models import ScanRun, Violation, AuditEvent, ScanLog
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables initialized successfully.")
 

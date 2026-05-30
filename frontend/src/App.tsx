@@ -5,9 +5,9 @@ import ScanStatus from './components/ScanStatus';
 import ViolationLog from './components/ViolationLog';
 import { useScanWebSocket } from './hooks/useScanWebSocket';
 import { useViolations } from './hooks/useViolations';
-import { Shield, Activity, Search, Book, History, ExternalLink, Code } from 'lucide-react';
+import { Shield, Activity, Book, History, ExternalLink, Code, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import client from './api/client';
-import { AuditEvent } from './types';
+import { AuditEvent, ScanLog, ScanRun } from './types';
 
 type View = 'dashboard' | 'policies' | 'audit';
 
@@ -22,9 +22,13 @@ interface Policy {
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('dashboard');
   const [currentScanId, setCurrentScanId] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { events, status } = useScanWebSocket(currentScanId);
   const { violations } = useViolations(currentScanId || undefined);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [scanRuns, setScanRuns] = useState<ScanRun[]>([]);
+  const [scanLogs, setScanLogs] = useState<ScanLog[]>([]);
+  const [selectedHistoryScanId, setSelectedHistoryScanId] = useState<string | null>(null);
   const [policies, setPolicies] = useState<Policy[]>([]);
 
   // Mock stats for demo purposes
@@ -36,26 +40,48 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (activeView === 'audit' && currentScanId) {
-      client.get(`/api/audit/${currentScanId}`).then((res: { data: AuditEvent[] }) => setAuditEvents(res.data));
+    if (activeView === 'audit') {
+      client.get('/api/scans').then((res: { data: ScanRun[] }) => {
+        setScanRuns(res.data);
+        setSelectedHistoryScanId((selected) => selected || res.data[0]?.id || null);
+      });
     }
     if (activeView === 'policies') {
       client.get('/api/policies').then((res: { data: Policy[] }) => setPolicies(res.data));
     }
-  }, [activeView, currentScanId]);
+  }, [activeView]);
+
+  useEffect(() => {
+    if (activeView !== 'audit' || !selectedHistoryScanId) {
+      setAuditEvents([]);
+      setScanLogs([]);
+      return;
+    }
+
+    client.get(`/api/audit/${selectedHistoryScanId}`).then((res: { data: AuditEvent[] }) => setAuditEvents(res.data));
+    client.get(`/api/scan/${selectedHistoryScanId}/logs`).then((res: { data: ScanLog[] }) => setScanLogs(res.data));
+  }, [activeView, selectedHistoryScanId]);
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
       {/* Sidebar - Simple Navigation */}
-      <aside className="w-20 lg:w-64 bg-white border-r border-slate-200 flex flex-col items-center lg:items-stretch py-6 px-4 shrink-0">
-        <div className="flex items-center gap-3 px-2 mb-10">
+      <aside className={`bg-white border-r border-slate-200 flex flex-col py-6 px-4 shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'w-20 items-center' : 'w-20 lg:w-64 items-center lg:items-stretch'}`}>
+        <div className={`flex items-center gap-3 px-2 mb-10 ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200 cursor-pointer" onClick={() => setActiveView('dashboard')}>
             <Shield className="text-white h-6 w-6" />
           </div>
-          <div className="hidden lg:block overflow-hidden">
+          <div className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} overflow-hidden`}>
             <h1 className="text-sm font-black tracking-tight whitespace-nowrap">COMPLIANCEGUARD</h1>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter leading-none">v2.0 Autonomous</p>
           </div>
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+            className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:flex'} h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors`}
+            aria-label="Collapse sidebar"
+          >
+            <PanelLeftClose size={16} />
+          </button>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -66,7 +92,7 @@ const App: React.FC = () => {
             }`}
           >
             <Activity size={20} className="shrink-0" />
-            <span className={`hidden lg:block text-sm font-bold ${activeView === 'dashboard' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Active Scans</span>
+            <span className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} text-sm font-bold ${activeView === 'dashboard' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Active Scans</span>
           </div>
           <div 
             onClick={() => setActiveView('policies')}
@@ -75,7 +101,7 @@ const App: React.FC = () => {
             }`}
           >
             <Book size={20} className="shrink-0" />
-            <span className={`hidden lg:block text-sm font-bold ${activeView === 'policies' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Policy Library</span>
+            <span className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} text-sm font-bold ${activeView === 'policies' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Policy Library</span>
           </div>
           <div 
             onClick={() => setActiveView('audit')}
@@ -84,16 +110,26 @@ const App: React.FC = () => {
             }`}
           >
             <History size={20} className="shrink-0" />
-            <span className={`hidden lg:block text-sm font-bold ${activeView === 'audit' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Audit Logs</span>
+            <span className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} text-sm font-bold ${activeView === 'audit' ? '' : 'opacity-70 group-hover:opacity-100'}`}>Scan History</span>
           </div>
         </nav>
 
         <div className="mt-auto pt-6 border-t border-slate-100">
-          <div className="flex items-center gap-3 px-2 py-3 rounded-xl bg-slate-50 border border-slate-100">
+          {sidebarCollapsed && (
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(false)}
+              className="mb-4 hidden h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 lg:flex"
+              aria-label="Expand sidebar"
+            >
+              <PanelLeftOpen size={17} />
+            </button>
+          )}
+          <div className={`flex items-center gap-3 px-2 py-3 rounded-xl bg-slate-50 border border-slate-100 ${sidebarCollapsed ? 'justify-center' : ''}`}>
             <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-black shadow-sm shrink-0">
               TS
             </div>
-            <div className="hidden lg:block overflow-hidden">
+            <div className={`${sidebarCollapsed ? 'hidden' : 'hidden lg:block'} overflow-hidden`}>
               <p className="text-xs font-black truncate leading-none mb-1">Stacktracers</p>
               <p className="text-[9px] text-slate-400 font-mono font-bold leading-none uppercase">ID: B1A342C5</p>
             </div>
@@ -109,7 +145,7 @@ const App: React.FC = () => {
               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dashboard</span>
               <span className="text-slate-300">/</span>
               <span className="text-xs font-bold text-slate-800 uppercase tracking-widest">
-                {activeView === 'dashboard' ? 'Scan Control' : activeView === 'policies' ? 'Policy Management' : 'Autonomous Audit'}
+                {activeView === 'dashboard' ? 'Scan Control' : activeView === 'policies' ? 'Policy Management' : 'Scan History'}
               </span>
             </div>
           </div>
@@ -129,13 +165,13 @@ const App: React.FC = () => {
                 score={stats.score} 
               />
               
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start pb-10">
-                <div className="xl:col-span-4 space-y-8">
+              <div className="grid grid-cols-1 2xl:grid-cols-12 gap-8 items-start pb-10">
+                <div className="2xl:col-span-4 space-y-8">
                   <ScanTrigger onScanTriggered={setCurrentScanId} />
                   <ScanStatus events={events} status={status} />
                 </div>
                 
-                <div className="xl:col-span-8 h-full">
+                <div className="2xl:col-span-8 h-full">
                   <ViolationLog violations={violations} />
                 </div>
               </div>
@@ -171,13 +207,87 @@ const App: React.FC = () => {
           )}
 
           {activeView === 'audit' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              <div className="xl:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-8 border-b border-slate-100">
-                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">Audit Trail</h2>
-                  <p className="text-slate-500 font-medium">Cryptographically signed execution logs verified by ArmorIQ.</p>
+                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">Scan History</h2>
+                  <p className="text-slate-500 font-medium">Pick a scan to replay persisted logs.</p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="max-h-[680px] overflow-y-auto divide-y divide-slate-100">
+                  {scanRuns.length === 0 ? (
+                    <div className="p-8 text-sm font-medium text-slate-400">No scans persisted yet.</div>
+                  ) : (
+                    scanRuns.map((scan) => (
+                      <button
+                        key={scan.id}
+                        type="button"
+                        onClick={() => setSelectedHistoryScanId(scan.id)}
+                        className={`w-full text-left p-5 transition-colors ${selectedHistoryScanId === scan.id ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-black text-slate-800">{scan.service_name}</span>
+                          <span className={`rounded px-2 py-0.5 text-[10px] font-black ${
+                            scan.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                            scan.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
+                            scan.status === 'RUNNING' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {scan.status}
+                          </span>
+                        </div>
+                        <p className="mt-2 break-all text-[11px] font-mono text-slate-500">Scan ID: {scan.id}</p>
+                        <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-bold text-slate-500">
+                          <span>{new Date(scan.started_at).toLocaleString()}</span>
+                          <span>•</span>
+                          <span>{scan.violations_found} violations</span>
+                          {scan.compliance_score !== undefined && (
+                            <>
+                              <span>•</span>
+                              <span>{Number(scan.compliance_score).toFixed(0)} score</span>
+                            </>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="xl:col-span-8 space-y-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-6 border-b border-slate-100 flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl font-black text-slate-800 tracking-tight">Persisted Execution Logs</h2>
+                      <p className="text-xs font-mono text-slate-500 mt-1">
+                        {selectedHistoryScanId ? `Scan ID: ${selectedHistoryScanId}` : 'Select a scan'}
+                      </p>
+                    </div>
+                    <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">
+                      {scanLogs.length} events
+                    </span>
+                  </div>
+                  <div className="h-80 overflow-y-auto bg-slate-950 p-4 font-mono text-[11px] leading-relaxed">
+                    {scanLogs.length === 0 ? (
+                      <div className="text-slate-600 italic">No persisted logs for this scan.</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {scanLogs.map((log) => (
+                          <div key={log.id} className="grid grid-cols-[88px_120px_1fr] gap-3 border-l border-slate-800 pl-3">
+                            <span className="text-slate-600">{new Date(log.timestamp).toLocaleTimeString([], { hour12: false })}</span>
+                            <span className="font-black text-indigo-300">{log.event_type}</span>
+                            <span className="text-slate-300">{log.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-6 border-b border-slate-100">
+                    <h2 className="text-xl font-black text-slate-800 tracking-tight">Cryptographic Audit Trail</h2>
+                    <p className="text-slate-500 font-medium">Signed agent actions persisted in PostgreSQL.</p>
+                  </div>
+                  <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead className="bg-slate-50 border-b border-slate-100">
                       <tr>
@@ -222,6 +332,7 @@ const App: React.FC = () => {
                       )}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
             </div>

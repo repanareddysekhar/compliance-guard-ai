@@ -1,6 +1,6 @@
 import React from 'react';
 import { Violation, Severity } from '../types';
-import { AlertCircle, AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, FileCode2, Wrench } from 'lucide-react';
 
 interface ViolationLogProps {
   violations: Violation[];
@@ -19,70 +19,95 @@ const STATUS_COLORS: Record<string, string> = {
   AUTO_FIXED: "bg-green-600 text-white",
 };
 
+const formatSnippet = (violation: Violation) => {
+  if (!violation.code_snippet) return [];
+
+  const startLine = violation.snippet_start_line ?? 1;
+  return violation.code_snippet.split('\n').map((line, index) => ({
+    lineNumber: startLine + index,
+    code: line,
+    isFinding: violation.line_number === startLine + index,
+  }));
+};
+
 const ViolationLog: React.FC<ViolationLogProps> = ({ violations }) => {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full min-h-[600px]">
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full min-h-[560px]">
       <div className="px-6 py-4 border-b border-slate-200 bg-white flex justify-between items-center">
         <div>
           <h3 className="text-lg font-bold text-slate-800">Violation Log</h3>
-          <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Detected policy breaches</p>
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Evidence, location, and suggested fixes</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-400 uppercase">Total:</span>
           <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-sm font-bold">{violations.length}</span>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50 sticky top-0 z-10">
-            <tr>
-              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Severity</th>
-              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Description</th>
-              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Category</th>
-              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
-              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Service</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-slate-100">
-            {violations.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-20 text-center">
-                  <div className="flex flex-col items-center gap-2 text-slate-300">
-                    <CheckCircle2 size={48} className="opacity-20" />
-                    <p className="text-sm font-medium">No violations detected in the current scope.</p>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              violations.map((v) => (
-                <tr key={v.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded text-[10px] font-black tracking-tighter border ${SEVERITY_COLORS[v.severity]}`}>
-                      {v.severity}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 max-w-md">
-                    <div className="text-sm text-slate-900 font-semibold group-hover:text-indigo-600 transition-colors">{v.description}</div>
-                    <div className="text-[11px] text-slate-400 font-mono mt-0.5 flex items-center gap-1">
-                      <span className="opacity-50">PATH:</span> {v.file_path}:{v.line_number}
+      <div className="flex-1 overflow-y-auto p-4 bg-slate-50/70">
+        {violations.length === 0 ? (
+          <div className="h-full min-h-80 flex flex-col items-center justify-center gap-2 text-slate-300">
+            <CheckCircle2 size={48} className="opacity-20" />
+            <p className="text-sm font-medium">No violations detected in the current scope.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {violations.map((v) => (
+              <article key={v.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-100 transition-colors">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className={`px-2 py-1 rounded text-[10px] font-black tracking-tighter border ${SEVERITY_COLORS[v.severity]}`}>
+                        {v.severity}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${STATUS_COLORS[v.status]}`}>
+                        {v.status}
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                        {v.category}
+                      </span>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-[11px] font-bold text-slate-500">
-                    {v.category}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${STATUS_COLORS[v.status]}`}>
-                      {v.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-bold text-right">
+                    <h4 className="text-sm font-black text-slate-900">{v.description}</h4>
+                    <p className="mt-1 break-all text-[11px] text-slate-500 font-mono">
+                      {v.file_path || 'Unknown file'}{v.line_number ? `:${v.line_number}` : ''}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-700">
                     {v.service}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </span>
+                </div>
+
+                {v.code_snippet && (
+                  <div className="mt-4 rounded-lg overflow-hidden border border-slate-200 bg-slate-950 shadow-sm">
+                    <div className="px-3 py-2 bg-slate-900 border-b border-slate-800 flex items-center gap-2 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
+                      <FileCode2 size={13} className="text-indigo-300" />
+                      Evidence
+                    </div>
+                    <div className="py-2 text-[11px] leading-5 overflow-x-auto">
+                      {formatSnippet(v).map(({ lineNumber, code, isFinding }) => (
+                        <div key={lineNumber} className={`px-3 flex gap-3 ${isFinding ? 'bg-red-500/20 text-red-100' : 'text-slate-300'}`}>
+                          <span className={`select-none min-w-8 text-right ${isFinding ? 'text-red-300 font-bold' : 'text-slate-500'}`}>
+                            {lineNumber}
+                          </span>
+                          <code className="font-mono whitespace-pre">{code || ' '}</code>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {v.remediation && (
+                  <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                    <div className="mb-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                      <Wrench size={13} />
+                      Suggested Fix
+                    </div>
+                    <p className="text-xs font-medium leading-5 text-emerald-900">{v.remediation}</p>
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,8 +3,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 import uuid
 from backend.db.database import get_db
-from backend.db.models import ScanRun
+from backend.db.models import ScanLog, ScanRun
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from backend.agent.scan_agent import run_scan
 from backend.api.ws import manager
 
@@ -66,3 +67,19 @@ async def get_scan_status(scan_id: uuid.UUID, db: AsyncSession = Depends(get_db)
     if not scan_run:
         raise HTTPException(status_code=404, detail="Scan not found")
     return scan_run
+
+@router.get("/scans")
+async def list_scans(limit: int = 25, db: AsyncSession = Depends(get_db)):
+    query = select(ScanRun).order_by(ScanRun.started_at.desc()).limit(min(limit, 100))
+    result = await db.execute(query)
+    return result.scalars().all()
+
+@router.get("/scan/{scan_id}/logs")
+async def get_scan_logs(scan_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    scan_run = await db.get(ScanRun, scan_id)
+    if not scan_run:
+        raise HTTPException(status_code=404, detail="Scan not found")
+
+    query = select(ScanLog).where(ScanLog.scan_run_id == scan_id).order_by(ScanLog.timestamp.asc())
+    result = await db.execute(query)
+    return result.scalars().all()

@@ -15,6 +15,16 @@ export interface ScanRun {
   services_scanned: number;
   violations_found: number;
   auto_fixed: number;
+  compliance_score?: number;
+}
+
+export interface ScanLog {
+  id: string;
+  scan_run_id: string;
+  timestamp: string;
+  event_type: WsEvent["type"];
+  message: string;
+  payload?: WsEvent;
 }
 
 export interface Violation {
@@ -27,6 +37,8 @@ export interface Violation {
   description: string;
   file_path?: string;
   line_number?: number;
+  code_snippet?: string | null;
+  snippet_start_line?: number | null;
   remediation: string;           // Step-by-step fix recommendation
   opa_policy_ref: string;        // e.g. "compliance/cryptographic"
   detected_at: string;
